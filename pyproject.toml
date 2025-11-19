@@ -1,18 +1,35 @@
-[project]
+
+[tool.poetry]
 name = "openfoam-airfoil"
 version = "0.1.0"
 description = ""
 authors = [
-    {name = "Arek Drabik",email = "arek.drabik1453@gmail.com"}
+    "Arek Drabik <arek.drabik1453@gmail.com>"
 ]
 readme = "README.md"
-requires-python = ">=3.11"
-dependencies = [
+packages = [
+    { include = "airfoil", from = "src" },
+    { include = "simulation", from = "src" },
+    { include = "postprocess", from = "src" }
 ]
+
+[tool.poetry.dependencies]
+python = ">=3.11"
+airfoils = ">=0.2.2,<0.3.0"
+
+numpy = ">=2.3.5,<3.0.0"
+matplotlib = ">=3.10.7,<4.0.0"
+scipy = ">=1.16.3,<2.0.0"
+requests = "^2.32.5"
 
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-packages = [{ include = "airfoil", from = "src" }, { include = "simulation", from = "src" }, { include = "postprocess", from = "src" }]
+
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^7.1.0"
+flake8 = "^7.3.0"
+
