@@ -1,28 +1,54 @@
 import numpy as np
 import requests
 from postprocess.visualizations import plot_airfoil
+from templates.airfoil_template import Airfoil
+from templates.initial_settings_template import Settings
 from scipy.interpolate import interp1d
 from pathlib import Path
-import os
+import utils.utilities as ut
 
 
-class NACA4:
-    def __init__(self, designation, chord_length=1.0, n_points=100):
+class NACA4(Airfoil):
+    def __init__(
+            self,
+            designation: str = None,
+            chord_length: float = None,
+            resolution: int = None,
+            setup: Settings = None
+    ):
         """
         Class to generate NACA 4-digit airfoil. Provides coordinates for the surface
         lines, mean camber, thickness distribution, and angle theta along the chord.
+        Is capable to apply angle of attack. The leading edge is always on (0, 0).
         Also allows fast plotting of the airfoil geometry.
+
+        Passed arguments are prioritized, but if not provided, the class will try to
+        extract them from the Settings object (initial_settings.json).
 
         Args:
             designation (str): NACA 4-digit designation, e.g., '2412'
             chord_length (float): Chord length of the airfoil in meters.
-            n_points (int): Number of points to discretize the airfoil surface along.
+            resolution (int): Number of points to discretize the airfoil surface along.
+            setup (Settings): Settings object to extract initial parameters from.
         """
-        self.designation = designation
-        self.chord_length = chord_length
-        self.n_points = n_points
+        if designation is None:
+            self.designation = setup.airfoil_settings.get("Designation")
+        else:
+            self.designation = designation
 
-        self.x = np.linspace(0, 1, n_points)
+        if chord_length is None:
+            self.chord_length = setup.airfoil_settings.get("Chord")
+        else:
+            self.chord_length = chord_length
+
+        if resolution is None:
+            self.resolution = setup.airfoil_settings.get("Resolution")
+        else:
+            self.resolution = resolution
+        self._alpha = 0.0
+
+        self.x = np.linspace(0, 1, self.resolution)
+        self.x_alpha_zero = self.x.copy()
         self.m, self.p, self.t = self.extract_digits()
 
     def extract_digits(self) -> tuple[float, float, float]:
@@ -30,7 +56,7 @@ class NACA4:
         Extract the digits from the NACA designation.
 
         Returns:
-            (m, p, t): maximum camber, location of maximum camber, and maximum 
+            (m, p, t): maximum camber, location of maximum camber, and maximum
                 thickness as fractions of chord length.
         """
         m = int(self.designation[0]) / 100.0  # Maximum camber
@@ -178,77 +204,160 @@ class NACA4:
         Returns:
             np.ndarray: 2D array of thickness distribution coordinates.
         """
-        yt = self._thickness_distribution(x, self.t)
-        return np.array([x * self.chord_length, yt * self.chord_length])
+        return self._thickness_distribution(x, self.t)
+
+    def set_angle_of_attack(self, alpha: float) -> None:
+        """
+        Apply angle of attack to the airfoil. Coordinate system assumes positive angle
+        is clockwise. Rotation is done around the leading edge (0, 0).
+
+        Args:
+            alpha (float): Angle of attack in degrees.
+        """
+        self._alpha = alpha
 
     @property
     def mean_camber_line(self):
-        """Get the mean camber line coordinates."""
-        yc = self._mean_camber_line(self.x, self.m, self.p)
-        return np.array([self.x * self.chord_length, yc * self.chord_length])
+        """
+        Get the mean camber line coordinates eventually rotated by alpha.
+        """
+        yc = self._mean_camber_line(self.x_alpha_zero, self.m, self.p)
+        return ut.rotate_by_alpha(
+            -self.alpha,
+            self.x_alpha_zero * self.chord_length,
+            yc * self.chord_length
+        )
 
     @property
     def upper_surface(self):
-        """Get the upper surface coordinates."""
-        yc = self._mean_camber_line(self.x, self.m, self.p)
-        yt = self._thickness_distribution(self.x, self.t)
-        dyc_dx = self._mean_camber_derivative(self.x, self.m, self.p)
+        """
+        Get the upper surface coordinates eventually rotated by alpha.
+        """
+        yc = self._mean_camber_line(self.x_alpha_zero, self.m, self.p)
+        yt = self._thickness_distribution(self.x_alpha_zero, self.t)
+        dyc_dx = self._mean_camber_derivative(self.x_alpha_zero, self.m, self.p)
         theta = self._theta(dyc_dx)
-        xu, yu = self._upper_surface(self.x, yc, yt, theta)
-        return np.array([xu * self.chord_length, yu * self.chord_length])
+        xu, yu = self._upper_surface(self.x_alpha_zero, yc, yt, theta)
+        return ut.rotate_by_alpha(
+            -self.alpha,
+            xu * self.chord_length,
+            yu * self.chord_length
+        )
 
     @property
     def lower_surface(self):
-        """Get the lower surface coordinates."""
-        yc = self._mean_camber_line(self.x, self.m, self.p)
-        yt = self._thickness_distribution(self.x, self.t)
-        dyc_dx = self._mean_camber_derivative(self.x, self.m, self.p)
+        """
+        Get the lower surface coordinates eventually rotated by alpha.
+        """
+        yc = self._mean_camber_line(self.x_alpha_zero, self.m, self.p)
+        yt = self._thickness_distribution(self.x_alpha_zero, self.t)
+        dyc_dx = self._mean_camber_derivative(self.x_alpha_zero, self.m, self.p)
         theta = self._theta(dyc_dx)
-        xl, yl = self._lower_surface(self.x, yc, yt, theta)
-        return np.array([xl * self.chord_length, yl * self.chord_length])
+        xl, yl = self._lower_surface(self.x_alpha_zero, yc, yt, theta)
+        return ut.rotate_by_alpha(
+            -self.alpha,
+            xl * self.chord_length,
+            yl * self.chord_length
+        )
 
     @property
     def theta(self):
-        """Get the angle theta along the chord."""
-        dyc_dx = self._mean_camber_derivative(self.x, self.m, self.p)
+        """
+        Get the angle theta along the chord.
+        """
+        dyc_dx = self._mean_camber_derivative(self.x_alpha_zero, self.m, self.p)
         return self._theta(dyc_dx)
 
     @property
     def thickness(self):
-        """Get the thickness distribution coordinates."""
-        return self._thickness(self.x)
+        """
+        Get the thickness distribution coordinates eventually rotated by alpha.
+        """
+        thickness = self._thickness(self.x)
+        thickness = np.array([
+            self.x * self.chord_length,
+            thickness * self.chord_length
+        ])
+        return ut.rotate_by_alpha(-self.alpha, thickness[0], thickness[1])
 
-    def plot(self, title: str = "NACA Airfoil", save_path: Path = None) -> None:
+    @property
+    def chord(self):
+        """
+        Get the chord length.
+        """
+        return self.chord_length
+
+    @property
+    def alpha(self):
+        """
+        Get the angle of attack.
+        """
+        return self._alpha
+
+    def plot(
+            self, title: str = "NACA Airfoil",
+            save_path: Path = None,
+            show: bool = True
+    ) -> None:
         """
         Plot the airfoil geometry.
 
         Args:
             title (str): Title of the plot.
             save_path (Path): Path to save the plot image. If None, the plot is shown.
+            show (bool): Whether to display the plot.
         """
-        plot_airfoil(self.upper_surface, self.lower_surface,
-                     self.mean_camber_line, self.thickness, title, save_path)
+        plot_airfoil(
+            self.upper_surface,
+            self.lower_surface,
+            title,
+            save_path,
+            show,
+            self.mean_camber_line,
+            self.thickness,
+            self.chord,
+            -self.alpha,
+        )
 
 
 class UIUCAirfoil:
 
-    def __init__(self, designation: str, chord_length: float, n_points: int):
+    def __init__(
+            self, designation: str = None,
+            chord_length: float = None,
+            resolution: int = None,
+            setup: Settings = None
+    ):
         """
         Class to handle airfoils from the UIUC Airfoil Database. After giving
         the designation, it downloads the .dat file, processes the coordinates,
-        resamples and provides surface lines, mean camber line, and thickness 
-        distribution.
+        resamples and provides surface lines, mean camber line, and thickness
+        distribution. Is capable to apply angle of attack. The leading edge is
+        always on (0, 0). Also allows fast plotting of the airfoil geometry.
 
         Args:
             designation (str): Designation of the airfoil, e.g., 'naca2412' or 'mh114'
             chord_length (float): Chord length of the airfoil in meters.
-            n_points (int): Number of points to discretize the airfoil surface along.
+            resolution (int): Number of points to discretize the airfoil surface along.
+            setup (Settings): Settings object to extract initial parameters from.
         """
-        self.designation = designation
-        self.chord_length = chord_length
-        self.n_points = n_points
+        if designation is None:
+            self.designation = setup.airfoil_settings.get("Designation")
+        else:
+            self.designation = designation
 
-        self._get_airfoil(designation)
+        if chord_length is None:
+            self.chord_length = setup.airfoil_settings.get("Chord")
+        else:
+            self.chord_length = chord_length
+
+        if resolution is None:
+            self.resolution = setup.airfoil_settings.get("Resolution")
+        else:
+            self.resolution = resolution
+        self._alpha = 0.0
+
+        self._get_airfoil(self.designation)
 
     def download_uiuc_airfoil(self, designation: str, save_dir: str = None) -> None:
         """
@@ -257,7 +366,7 @@ class UIUCAirfoil:
             designation (str): Designation of the airfoil, e.g., 'naca2412' or 'mh114'
             save_dir (str): Directory to save the downloaded file (relative to project
                 root). Defaults to input/airfoils.
-        """
+        """ 
         project_root = Path(__file__).resolve().parents[2]
         if save_dir is None:
             save_path_dir = project_root / "input/airfoils"
@@ -311,7 +420,7 @@ class UIUCAirfoil:
         y_upper = y_coords[1:n_points]
 
         x_lower = x_coords[n_points:]
-        y_lower = y_coords[n_points:]     
+        y_lower = y_coords[n_points:]
 
         upper = np.array([x_upper, y_upper])
         lower = np.array([x_lower, y_lower])
@@ -349,30 +458,13 @@ class UIUCAirfoil:
             (upper_line_resampled, lower_line_resampled): Arrays of resampled upper and
                 lower surface coordinates according to the specified number of points.
         """
-        upper_line_resampled = self.resample_line(
-            upper_line[0], upper_line[1], self.n_points)
+        upper_line_resampled = ut.resample_line(
+            upper_line[0], upper_line[1], self.resolution)
 
-        lower_line_resampled = self.resample_line(
-            lower_line[0], lower_line[1], self.n_points)
-        
+        lower_line_resampled = ut.resample_line(
+            lower_line[0], lower_line[1], self.resolution)
+
         return upper_line_resampled, lower_line_resampled
-    
-    def resample_line(self, x, y, n_points):
-        """
-        Resample a line defined by x and y coordinates to have n_points.
-
-        Args:
-            x (np.ndarray): Original x-coordinates.
-            y (np.ndarray): Original y-coordinates.
-            n_points (int): Number of points to resample to.
-
-        Returns:
-            tuple[np.ndarray, np.ndarray]: Resampled x and y coordinates.
-        """
-        interp_func = interp1d(x, y, kind='linear')
-        x_new = np.linspace(np.min(x), np.max(x), n_points)
-        y_new = interp_func(x_new)
-        return x_new, y_new
 
     def _calculate_mean_camber_line(self) -> np.ndarray:
         """
@@ -385,7 +477,7 @@ class UIUCAirfoil:
         x_lower, y_lower = self._lower_line_resampled
 
         # Ensure both surfaces have the same x-coordinates for averaging
-        x_common = np.linspace(0, 1, self.n_points)
+        x_common = np.linspace(0, 1, self.resolution)
         y_upper_interp = interp1d(x_upper, y_upper, kind='linear',
                                   fill_value="extrapolate")(x_common)
         y_lower_interp = interp1d(x_lower, y_lower, kind='linear',
@@ -399,14 +491,14 @@ class UIUCAirfoil:
         Calculate the thickness distribution from upper and lower surfaces lines.
 
         Returns:
-        
+
             np.ndarray: Calculated array of thickness distribution coordinates.
         """
         x_upper, y_upper = self._upper_line_resampled
         x_lower, y_lower = self._lower_line_resampled
 
         # Ensure both surfaces have the same x-coordinates for thickness calculation
-        x_common = np.linspace(0, 1, self.n_points)
+        x_common = np.linspace(0, 1, self.resolution)
         y_upper_interp = interp1d(x_upper, y_upper, kind='linear',
                                   fill_value="extrapolate")(x_common)
         y_lower_interp = interp1d(x_lower, y_lower, kind='linear',
@@ -415,39 +507,72 @@ class UIUCAirfoil:
         thickness = y_upper_interp - np.abs(y_lower_interp)
         return np.array([x_common, thickness])
     
+    def set_angle_of_attack(self, alpha: float) -> None:
+        """
+        Apply angle of attack to the airfoil. Coordinate system assumes positive angle
+        is clockwise. Rotation is done around the leading edge (0, 0).
+
+        Args:
+            alpha (float): Angle of attack in degrees.
+        """
+        self._alpha = alpha
+
     @property
     def upper_surface(self) -> np.ndarray:
         """Get the upper surface coordinates."""
-        return np.array([
+        upper_line = np.array([
             self._upper_line_resampled[0] * self.chord_length,
             self._upper_line_resampled[1] * self.chord_length
         ])
-    
+        return ut.rotate_by_alpha(-self._alpha, upper_line[0], upper_line[1])
+
     @property
     def lower_surface(self) -> np.ndarray:
         """Get the lower surface coordinates."""
-        return np.array([
+        lower_line = np.array([
             self._lower_line_resampled[0] * self.chord_length,
             self._lower_line_resampled[1] * self.chord_length
         ])
-    
+        return ut.rotate_by_alpha(-self._alpha, lower_line[0], lower_line[1])
+
     @property
     def mean_camber_line(self) -> np.ndarray:
         """Get the mean camber line coordinates."""
-        return np.array([
+        mean_camber_line = np.array([
             self._mean_camber_line[0] * self.chord_length,
             self._mean_camber_line[1] * self.chord_length
         ])
-    
+        return ut.rotate_by_alpha(
+            -self._alpha,
+            mean_camber_line[0],
+            mean_camber_line[1]
+        )
+
     @property
     def thickness(self) -> np.ndarray:
         """Get the thickness distribution coordinates."""
-        return np.array([
+        thickness = np.array([
             self._thickness[0] * self.chord_length,
             self._thickness[1] * self.chord_length
         ])
-    
-    def plot(self, title: str = "UIUC Airfoil", save_path: Path = None) -> None:
+        return ut.rotate_by_alpha(-self._alpha, thickness[0], thickness[1])
+
+    @property
+    def chord(self) -> float:
+        """Get the chord length."""
+        return self.chord_length
+
+    @property
+    def alpha(self) -> float:
+        """Get the angle of attack."""
+        return self._alpha
+
+    def plot(
+            self,
+            title: str = "UIUC Airfoil",
+            save_path: Path = None,
+            show: bool = True
+    ) -> None:
         """
         Plot the airfoil geometry.
 
@@ -455,5 +580,14 @@ class UIUCAirfoil:
             title (str): Title of the plot.
             save_path (Path): Path to save the plot image. If None, the plot is shown.
         """
-        plot_airfoil(self.upper_surface, self.lower_surface,
-                     self.mean_camber_line, self.thickness, title, save_path)
+        plot_airfoil(
+            self.upper_surface,
+            self.lower_surface,
+            title,
+            save_path,
+            show,
+            self.mean_camber_line,
+            self.thickness,
+            self.chord,
+            -self._alpha
+        )

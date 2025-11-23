@@ -10,7 +10,10 @@ readme = "README.md"
 packages = [
     { include = "airfoil", from = "src" },
     { include = "simulation", from = "src" },
-    { include = "postprocess", from = "src" }
+    { include = "postprocess", from = "src" },
+    { include = "settings", from = "src" },
+    { include = "utils", from = "src" },
+    { include = "templates", from = "src" }
 ]
 
 [tool.poetry.dependencies]

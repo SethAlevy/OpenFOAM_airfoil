@@ -1,0 +1,34 @@
+{
+    "Airfoil": {
+        "Designation": "b737d",
+        "GenerateNACA4": true,
+        "GenerateNACA5": false,
+        "DownloadUIUC": false,
+        "LoadFilePath": false,
+        "Chord": 1.2,
+        "Resolution": 200
+    },
+    "Mesh": {
+        "BoundingBox": {
+            "InletDistance": 5.0,
+            "OutletDistance": 10.0,
+            "TopDistance": 5.0,
+            "BottomDistance": 5.0,
+            "BaseCellSize": 0.1
+        },
+        "SnappyHexMesh": {
+            "MinSurfaceRefinementLevel": 2,
+            "MaxSurfaceRefinementLevel": 4,
+            "RefinementBoxLevel": 3,
+            "SphereTipLevel": 4,
+            "SphereTipRadius": 0.1,
+            "SphereLeadingEdgeLevel": 4,
+            "SphereLeadingEdgeRadius": 0.1,
+            "FeatureRefinementLevel": 4,
+            "AddLayers": true,
+            "NSurfaceLayers": 3
+        },
+        "Mesher": "SnappyHexMesh"
+
+    }
+} 
