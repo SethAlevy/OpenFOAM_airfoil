@@ -319,6 +319,16 @@ class NACA4(Airfoil):
             -self.alpha,
         )
 
+    def to_stl(self, output_path) -> None:
+        """
+        Export airfoil geometry to STL format.
+        """
+        ut.export_airfoil_to_stl_trimesh(
+            self.upper_surface,
+            self.lower_surface,
+            output_path
+        )
+
 
 class UIUCAirfoil:
 
@@ -591,3 +601,12 @@ class UIUCAirfoil:
             self.chord,
             -self._alpha
         )
+
+    def to_stl(self, output_path) -> None:
+        """
+        Export airfoil geometry to STL format.
+        """
+        ut.export_airfoil_to_stl_trimesh(
+            self.upper_surface,
+            self.lower_surface,
+            output_path)

@@ -1,6 +1,6 @@
 {
     "Airfoil": {
-        "Designation": "b737d",
+        "Designation": "NACA4415",
         "GenerateNACA4": true,
         "GenerateNACA5": false,
         "DownloadUIUC": false,
@@ -9,26 +9,131 @@
         "Resolution": 200
     },
     "Mesh": {
-        "BoundingBox": {
-            "InletDistance": 5.0,
-            "OutletDistance": 10.0,
-            "TopDistance": 5.0,
-            "BottomDistance": 5.0,
-            "BaseCellSize": 0.1
+        "Mesher": "SnappyHexMesh",
+        "BlockMesh": {
+            "BoundingBox": {
+                "InletDistance": 5.0,
+                "OutletDistance": 10.0,
+                "TopDistance": 5.0,
+                "BottomDistance": 5.0,
+                "BaseCellSize": 0.1
+            }
         },
         "SnappyHexMesh": {
-            "MinSurfaceRefinementLevel": 2,
-            "MaxSurfaceRefinementLevel": 4,
-            "RefinementBoxLevel": 3,
-            "SphereTipLevel": 4,
-            "SphereTipRadius": 0.1,
-            "SphereLeadingEdgeLevel": 4,
-            "SphereLeadingEdgeRadius": 0.1,
-            "FeatureRefinementLevel": 4,
-            "AddLayers": true,
-            "NSurfaceLayers": 3
+            "Geometry": {
+                "RefinementBoxLevel": 3,
+                "SphereTipLevel": 4,
+                "SphereTipRadius": 0.1,
+                "SphereLeadingEdgeLevel": 4,
+                "SphereLeadingEdgeRadius": 0.1
+            },
+            "SnapControls": {
+                "NSmoothPatch": 5,
+                "Tolerance": 2.0,
+                "NSolveIter": 300,
+                "NRelaxIter": 5,
+                "NFeatureSnapIter": 10
+            },
+            "CastellatedMeshControls": {
+                "MaxLocalCells": 1000000,
+                "MaxGlobalCells": 2000000,
+                "MinRefinementCells": 10,
+                "MaxLoadUnbalance": 0.10,
+                "NCellsBetweenLevels": 3,
+                "MinSurfaceRefinementLevel": 2,
+                "MaxSurfaceRefinementLevel": 4,
+                "FeatureRefinementLevel": 4,
+                "ResolveFeatureAngle": 30
+            },
+            "AddLayersControls": {
+                "AddLayers": true,
+                "NSurfaceLayers": 3,
+                "ExpansionRatio": 1.0,
+                "FinalLayerThickness": 0.3,
+                "MinThickness": 0.1,
+                "NGrow": 0,
+                "FeatureAngle": 60,
+                "NRelaxIter": 3,
+                "NSmoothSurfaceNormals": 1,
+                "NSmoothNormals": 3,
+                "NSmoothThickness": 10,
+                "MaxFaceThicknessRatio": 0.5,
+                "MaxThicknessToMedialRatio": 0.3,
+                "MinMedianAxisAngle": 90,
+                "NBufferCellsNoExtrude": 0,
+                "NLayerIter": 50
+            }
+        }
+    },
+    "Simulation": {
+        "CaseName": "airfoilCase",
+        "ControlDict": {
+            "Solver": "simpleFoam",
+            "StartFrom": "startTime",
+            "StartTime": 0,
+            "EndTime": 1000,
+            "DeltaT": 1,
+            "WriteControl": "timeStep",
+            "WriteInterval": 100,
+            "PurgingInterval": 0
         },
-        "Mesher": "SnappyHexMesh"
-
+        "FvSolution": {
+            "k": {
+                "Solver": "smoothSolver",
+                "Smoother": "GaussSeidel",
+                "Tolerance": 1e-05,
+                "RelTol": 0.1
+            },
+            "Omega": {
+                "Solver": "smoothSolver",
+                "Smoother": "GaussSeidel",
+                "Tolerance": 1e-05,
+                "RelTol": 0.1
+            }
+        },
+        "FvSchemes": {
+            "DivSchemes": {
+                "Default": "Gauss upwind"
+            },
+            "LaplacianSchemes": {
+                "Default": "Gauss linear corrected"
+            },
+            "InterpolationSchemes": {
+                "Default": "linear"
+            }
+        },
+        "Decomposition": {
+            "Method": "scotch",
+            "NumberOfSubdomains": 4
+        },
+        "SurfaceFeatureExtract": {
+            "IncludedAngle": 150
+        },
+        "TurbulenceProperties": {
+            "Turbulence": "on",
+            "Model": "kOmegaSST",
+            "kOmegaSST": {
+                "Kappa": 0.41,
+                "E": 9.8
+            },
+            "kEpsilon": {
+                "Cmu": 0.09,
+                "C1Epsilon": 1.44,
+                "C2Epsilon": 1.92,
+                "SigmaK": 1.0,
+                "SigmaEpsilon": 1.3
+            }
+        },
+        "Fluid": {
+            "KinematicViscosity": 1.5e-05,
+            "Density": 1.225,
+            "Temperature": 300
+        },
+        "BoundaryConditions": {
+            "Velocity": 150.0,
+            "Pressure": 0.0,
+            "MachNumber": 0.5,
+            "ReynoldsNumber": 500000
+        }
     }
 } 

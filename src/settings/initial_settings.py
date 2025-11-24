@@ -11,7 +11,7 @@ class InitialSettingsReader():
         with open(self.filepath, 'r') as file:
             settings = json.load(file)
         return settings
-    
+
     @property
     def airfoil_settings(self) -> dict:
         return self.settings.get("Airfoil", {})
@@ -19,3 +19,8 @@ class InitialSettingsReader():
     @property
     def mesh_settings(self) -> dict:
         return self.settings.get("Mesh", {})
+    
+    @property
+    def simulation_settings(self) -> dict:
+        return self.settings.get("Simulation", {})
+    

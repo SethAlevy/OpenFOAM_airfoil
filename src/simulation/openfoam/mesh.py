@@ -13,9 +13,16 @@ def block_mesh_dict(airfoil: Airfoil, setup: Settings, output_path: Path) -> Non
         setup (Settings): Object with the simulation settings.
         output_path (Path): Path where the blockMeshDict file will be saved.
     """
-    bounding_box = setup.mesh_settings.get("BoundingBox")
+    bounding_box = setup.mesh_settings.get("BlockMesh", {}).get("BoundingBox", {})
     x_min, x_max, y_min, y_max = get_bounding_box(airfoil, bounding_box)
     cell_size = bounding_box["BaseCellSize"]
+
+    boundary_conditions = setup.simulation_settings.get("BoundaryConditions", {})
+    inlet_patch = boundary_conditions.get("InletPatchName", "inlet")
+    outlet_patch = boundary_conditions.get("OutletPatchName", "outlet")
+    lower_wall_patch = boundary_conditions.get("LowerWallPatchName", "lowerWall")
+    upper_wall_patch = boundary_conditions.get("UpperWallPatchName", "upperWall")
+    front_back_patch = boundary_conditions.get("FrontBackPatchName", "frontAndBack")
 
     content = generate_block_mesh_dict(
         x_min=x_min,
@@ -24,6 +31,11 @@ def block_mesh_dict(airfoil: Airfoil, setup: Settings, output_path: Path) -> Non
         y_max=y_max,
         nx=int((x_max - x_min) / cell_size),
         ny=int((y_max - y_min) / cell_size),
+        inlet_patch=inlet_patch,
+        outlet_patch=outlet_patch,
+        lower_wall_patch=lower_wall_patch,
+        upper_wall_patch=upper_wall_patch,
+        front_back_patch=front_back_patch
     )
 
     output_path.mkdir(parents=True, exist_ok=True)
@@ -66,21 +78,15 @@ def generate_block_mesh_dict(
     ny: int,
     z_min: float = 0,
     z_max: float = 0.01,
-    nz: int = 1
+    nz: int = 1,
+    inlet_patch: str = "inlet",
+    outlet_patch: str = "outlet",
+    lower_wall_patch: str = "lowerWall",
+    upper_wall_patch: str = "upperWall",
+    front_back_patch: str = "frontAndBack"
 ):
     """
-    Generate a simple BlockMesh dict for a 2D airfoil case.
-
-    Args:
-        x_min (float): Minimum x-coordinate of the domain.
-        x_max (float): Maximum x-coordinate of the domain.
-        y_min (float): Minimum y-coordinate of the domain.
-        y_max (float): Maximum y-coordinate of the domain.
-        nx (int): Number of cells in the x-direction.
-        ny (int): Number of cells in the y-direction.
-        z_min (float, optional): Minimum z-coordinate of the domain. Defaults to 0.
-        z_max (float, optional): Maximum z-coordinate of the domain. Defaults to 0.01.
-        nz (int, optional): Number of cells in the z-direction. Defaults to 1
+    Generate a simple BlockMesh dict for a 2D airfoil case with customizable patch names.
     """
     content = f"""FoamFile
 {{
@@ -115,7 +121,7 @@ edges
 
 boundary
 (
-    inlet
+    {inlet_patch}
     {{
         type patch;
         faces
@@ -123,7 +129,7 @@ boundary
             (0 4 7 3)
         );
     }}
-    outlet
+    {outlet_patch}
     {{
         type patch;
         faces
@@ -131,7 +137,7 @@ boundary
             (1 2 6 5)
         );
     }}
-    lowerWall
+    {lower_wall_patch}
     {{
         type wall;
         faces
@@ -139,7 +145,7 @@ boundary
             (0 1 5 4)
         );
     }}
-    upperWall
+    {upper_wall_patch}
     {{
         type wall;
         faces
@@ -147,7 +153,7 @@ boundary
             (3 7 6 2)
         );
     }}
-    frontAndBack
+    {front_back_patch}
     {{
         type empty;
         faces
@@ -171,20 +177,23 @@ def snappy_hex_mesh_dict(airfoil: Airfoil, setup: Settings, output_path: Path) -
     save the file in the given path.
 
     Args:
+        airfoil (Airfoil): Object with the generated airfoil geometry.
         setup (Settings): Object with the simulation settings.
         output_path (Path): Path where the snappyHexMeshDict file will be saved.
     """
-    snappy_hex_mesh_settings = setup.mesh_settings.get("SnappyHexMesh")
-    add_layers = snappy_hex_mesh_settings.get("AddLayers", False)
-    n_layers = snappy_hex_mesh_settings.get("NSurfaceLayers", 0)
-    min_surface_refinement = snappy_hex_mesh_settings.get("MinSurfaceRefinementLevel", 0)
-    max_surface_refinement = snappy_hex_mesh_settings.get("MaxSurfaceRefinementLevel", 0)
-    feature_refinement_level = snappy_hex_mesh_settings.get("FeatureRefinementLevel", 0)
-    refinement_box_level = snappy_hex_mesh_settings.get("RefinementBoxLevel", 0)
-    sphere_tip_level = snappy_hex_mesh_settings.get("SphereTipLevel", 0)
-    sphere_tip_radius_scale = snappy_hex_mesh_settings.get("SphereTipRadius", 0)
-    sphere_leading_level = snappy_hex_mesh_settings.get("SphereLeadingEdgeLevel", 0)
-    sphere_leading_radius_scale = snappy_hex_mesh_settings.get("SphereLeadingEdgeRadius", 0)
+    snappy_hex_mesh_settings = setup.mesh_settings.get("SnappyHexMesh", {})
+
+    # Geometry refinement regions
+    refinement_box_level = snappy_hex_mesh_settings.get(
+        "CastellatedMeshControls", {}).get("RefinementBoxLevel", 0)
+    sphere_tip_level = snappy_hex_mesh_settings.get(
+        "CastellatedMeshControls", {}).get("SphereTipLevel", 0)
+    sphere_tip_radius_scale = snappy_hex_mesh_settings.get(
+        "CastellatedMeshControls", {}).get("SphereTipRadius", 0)
+    sphere_leading_level = snappy_hex_mesh_settings.get(
+        "CastellatedMeshControls", {}).get("SphereLeadingEdgeLevel", 0)
+    sphere_leading_radius_scale = snappy_hex_mesh_settings.get(
+        "CastellatedMeshControls", {}).get("SphereLeadingEdgeRadius", 0)
 
     if refinement_box_level > 0:
         refinement_box = refinement_box_dict(airfoil)
@@ -195,20 +204,30 @@ def snappy_hex_mesh_dict(airfoil: Airfoil, setup: Settings, output_path: Path) -
     else:
         sphere_tip = ''
     if sphere_leading_level > 0:
-        sphere_leading = refine_sphere_dict(airfoil, "leading", sphere_leading_radius_scale)
+        sphere_leading = refine_sphere_dict(
+            airfoil, "leading", sphere_leading_radius_scale)
     else:
         sphere_leading = ''
+
+    # Section dictionaries from JSON
+    add_layers_controls = snappy_hex_mesh_settings.get("AddLayersControls", {})
+    snap_controls = snappy_hex_mesh_settings.get("SnapControls", {})
+    castellated_controls = snappy_hex_mesh_settings.get("CastellatedMeshControls", {})
+
+    # Feature refinement level
+    feature_refinement_level = castellated_controls.get("FeatureRefinementLevel", 0)
+
     content = generate_snappy_hex_mesh_dict(
-        add_layers=add_layers,
         refinement_box=refinement_box,
         refinement_box_level=refinement_box_level,
         sphere_tip=sphere_tip,
         sphere_tip_level=sphere_tip_level,
         sphere_leading=sphere_leading,
         sphere_leading_level=sphere_leading_level,
-        surface_refinement_levels=(min_surface_refinement, max_surface_refinement),
-        n_surface_layers=n_layers,
         feature_refinement_level=feature_refinement_level,
+        layer_controls=add_layers_controls,
+        snap_controls=snap_controls,
+        castellated_controls=castellated_controls,
     )
 
     output_path.mkdir(parents=True, exist_ok=True)
@@ -243,29 +262,20 @@ def refine_sphere_dict(Airfoil: Airfoil, position: str, radius_scale: float) -> 
 
 
 def generate_snappy_hex_mesh_dict(
-    add_layers: bool = True,
     refinement_box: dict = '',
     refinement_box_level: int = 0,
     sphere_tip: dict = '',
     sphere_tip_level: int = 0,
     sphere_leading: dict = '',
     sphere_leading_level: int = 0,
-    surface_refinement_levels: tuple = (0, 0),
-    n_surface_layers: int = 0,
     feature_refinement_level: int = 0,
+    layer_controls: dict = {},
+    snap_controls: dict = {},
+    castellated_controls: dict = {},
+    mesh_quality_controls: dict = {},
 ):
     """
-    Generate a basic snappyHexMeshDict for a 2D airfoil case, with optional refinement box and spheres.
-
-    Args:
-        add_layers (bool): Enable layer addition.
-        refinement_box (dict, optional): Dict with 'min' and 'max' keys for refinement box.
-        sphere_tip (dict, optional): Dict with 'center' (list of 3 floats) and 'radius' (float).
-        sphere_leading (dict, optional): Dict with 'center' (list of 3 floats) and 'radius' (float).
-        refinement_levels (tuple): Refinement levels for airfoil surface (e.g., (3, 4)).
-        n_surface_layers (int): Number of surface layers for airfoil.
-        feature_level (int, optional): Refinement level for the feature.
-        output_path (str): Path to save the snappyHexMeshDict.
+    Generate a snappyHexMeshDict for a 2D airfoil case, using helper functions for sections.
     """
     ref_box_geo, ref_box_reg = box_geometry_and_refinement_str(
         "refinementBox", refinement_box, refinement_box_level)
@@ -274,10 +284,8 @@ def generate_snappy_hex_mesh_dict(
     lead_sphere_geo, lead_sphere_reg = sphere_geometry_and_refinement_str(
         "leadingEdgeSphere", sphere_leading, sphere_leading_level)
 
-    # Features section
     features_str = feature_str(feature_refinement_level)
 
-    # Geometry section
     geometry_section = f"""
     airfoil.stl
     {{
@@ -289,12 +297,25 @@ def generate_snappy_hex_mesh_dict(
     {lead_sphere_geo}
 """
 
-    # Refinement regions section
     refinement_regions_str = "    refinementRegions\n    {\n"
     refinement_regions_str += ref_box_reg
     refinement_regions_str += tip_sphere_reg
     refinement_regions_str += lead_sphere_reg
     refinement_regions_str += "    }\n"
+
+    castellated_mesh_controls_section = castellated_mesh_controls_str(
+        castellated_controls,
+        features_str,
+        refinement_regions_str
+    )
+
+    snap_controls_section = snap_controls_str(snap_controls)
+
+    layer_controls_section = add_layers_controls_str(
+        layer_controls,
+    )
+
+    mesh_quality_controls_section = mesh_quality_controls_str(mesh_quality_controls)
 
     content = f"""FoamFile
 {{
@@ -306,85 +327,17 @@ def generate_snappy_hex_mesh_dict(
 
 castellatedMesh true;
 snap            true;
-addLayers       {str(add_layers).lower()};
+addLayers       {'true' if layer_controls and layer_controls.get('NSurfaceLayers', 0) > 0 else 'false'};
 
 geometry
 {{
 {geometry_section}
 }}
 
-castellatedMeshControls
-{{
-    maxLocalCells 100000;
-    maxGlobalCells 2000000;
-    minRefinementCells 10;
-    nCellsBetweenLevels 3;
-
-{features_str}    refinementSurfaces
-    {{
-        airfoil
-        {{
-            level ({surface_refinement_levels[0]} {surface_refinement_levels[1]});
-        }}
-    }}
-
-{refinement_regions_str}
-    resolveFeatureAngle 30;
-    locationInMesh (0 0 0.005);
-}}
-
-snapControls
-{{
-    nSmoothPatch 3;
-    tolerance 2.0;
-    nSolveIter 30;
-    nRelaxIter 5;
-}}
-
-addLayersControls
-{{
-    relativeSizes true;
-    layers
-    {{
-        airfoil
-        {{
-            nSurfaceLayers {n_surface_layers};
-        }}
-    }}
-    expansionRatio 1.0;
-    finalLayerThickness 0.3;
-    minThickness 0.1;
-    nGrow 0;
-    featureAngle 60;
-    nRelaxIter 3;
-    nSmoothSurfaceNormals 1;
-    nSmoothNormals 3;
-    nSmoothThickness 10;
-    maxFaceThicknessRatio 0.5;
-    maxThicknessToMedialRatio 0.3;
-    minMedianAxisAngle 90;
-    nBufferCellsNoExtrude 0;
-    nLayerIter 50;
-}}
-
-meshQualityControls
-{{
-    maxNonOrtho 65;
-    maxBoundarySkewness 20;
-    maxInternalSkewness 4;
-    maxConcave 80;
-    minVol 1e-13;
-    minTetQuality 1e-9;
-    minArea -1;
-    minTwist 0.02;
-    minDeterminant 0.001;
-    minFaceWeight 0.02;
-    minVolRatio 0.01;
-    minTriangleTwist -1;
-    nSmoothScale 4;
-    errorReduction 0.75;
-}}
-
+{castellated_mesh_controls_section}
+{snap_controls_section}
+{layer_controls_section}
+{mesh_quality_controls_section}
 debug 0;
 mergeTolerance 1E-6;
 """
@@ -451,3 +404,114 @@ def feature_str(feature_level: int = 0, feature_file: str = "airfoil.eMesh"):
     );
 """
     return ""
+
+
+def snap_controls_str(snap_controls: dict) -> str:
+    """
+    Generate the snapControls section string for snappyHexMeshDict from a dictionary.
+    """
+    return f"""
+snapControls
+{{
+    nSmoothPatch {snap_controls.get('NSmoothPatch', 3)};
+    tolerance {snap_controls.get('Tolerance', 2.0)};
+    nSolveIter {snap_controls.get('NSolveIter', 30)};
+    nRelaxIter {snap_controls.get('NRelaxIter', 5)};
+    nFeatureSnapIter {snap_controls.get('NFeatureSnapIter', 10)};
+}}
+"""
+
+
+def add_layers_controls_str(add_layers_controls: dict) -> str:
+    """
+    Generate the addLayersControls section string for snappyHexMeshDict from a dictionary.
+    """
+    n_surface_layers = add_layers_controls.get('NSurfaceLayers', 0)
+    return f"""
+addLayersControls
+{{
+    relativeSizes {str(add_layers_controls.get('RelativeSizes', True)).lower()};
+    layers
+    {{
+        airfoil
+        {{
+            nSurfaceLayers {n_surface_layers};
+        }}
+    }}
+    expansionRatio {add_layers_controls.get('ExpansionRatio', 1.0)};
+    finalLayerThickness {add_layers_controls.get('FinalLayerThickness', 0.3)};
+    minThickness {add_layers_controls.get('MinThickness', 0.1)};
+    nGrow {add_layers_controls.get('NGrow', 0)};
+    featureAngle {add_layers_controls.get('FeatureAngle', 60)};
+    nRelaxIter {add_layers_controls.get('NRelaxIter', 3)};
+    nSmoothSurfaceNormals {add_layers_controls.get('NSmoothSurfaceNormals', 1)};
+    nSmoothNormals {add_layers_controls.get('NSmoothNormals', 3)};
+    nSmoothThickness {add_layers_controls.get('NSmoothThickness', 10)};
+    maxFaceThicknessRatio {add_layers_controls.get('MaxFaceThicknessRatio', 0.5)};
+    maxThicknessToMedialRatio {add_layers_controls.get('MaxThicknessToMedialRatio', 0.3)};
+    minMedianAxisAngle {add_layers_controls.get('MinMedianAxisAngle', 90)};
+    nBufferCellsNoExtrude {add_layers_controls.get('NBufferCellsNoExtrude', 0)};
+    nLayerIter {add_layers_controls.get('NLayerIter', 50)};
+}}
+"""
+
+
+def castellated_mesh_controls_str(
+    castellated_controls: dict,
+    features_str: str,
+    refinement_regions_str: str
+) -> str:
+    """
+    Generate the castellatedMeshControls section string for snappyHexMeshDict from a dictionary,
+    including refinementSurfaces creation with levels from the dict.
+    """
+    min_level = castellated_controls.get("MinSurfaceRefinementLevel", 0)
+    max_level = castellated_controls.get("MaxSurfaceRefinementLevel", 0)
+    refinement_surfaces_str = f"""    refinementSurfaces
+    {{
+        airfoil
+        {{
+            level ({min_level} {max_level});
+        }}
+    }}
+"""
+    return f"""
+castellatedMeshControls
+{{
+    maxLocalCells {castellated_controls.get('MaxLocalCells', 100000)};
+    maxGlobalCells {castellated_controls.get('MaxGlobalCells', 2000000)};
+    minRefinementCells {castellated_controls.get('MinRefinementCells', 10)};
+    maxLoadUnbalance {castellated_controls.get('MaxLoadUnbalance', 0.10)};
+    nCellsBetweenLevels {castellated_controls.get('nCellsBetweenLevels', 3)};
+{features_str}
+{refinement_surfaces_str}
+{refinement_regions_str}
+    resolveFeatureAngle {castellated_controls.get('ResolveFeatureAngle', 30)};
+    locationInMesh (0 0 0.005);
+}}
+"""
+
+
+def mesh_quality_controls_str(mesh_quality_controls: dict) -> str:
+    """
+    Generate the meshQualityControls section string for snappyHexMeshDict from a dictionary.
+    """
+    return f"""
+meshQualityControls
+{{
+    maxNonOrtho {mesh_quality_controls.get('MaxNonOrtho', 65)};
+    maxBoundarySkewness {mesh_quality_controls.get('MaxBoundarySkewness', 20)};
+    maxInternalSkewness {mesh_quality_controls.get('MaxInternalSkewness', 4)};
+    maxConcave {mesh_quality_controls.get('MaxConcave', 80)};
+    minVol {mesh_quality_controls.get('MinVol', 1e-13)};
+    minTetQuality {mesh_quality_controls.get('MinTetQuality', 1e-9)};
+    minArea {mesh_quality_controls.get('MinArea', -1)};
+    minTwist {mesh_quality_controls.get('MinTwist', 0.02)};
+    minDeterminant {mesh_quality_controls.get('MinDeterminant', 0.001)};
+    minFaceWeight {mesh_quality_controls.get('MinFaceWeight', 0.02)};
+    minVolRatio {mesh_quality_controls.get('MinVolRatio', 0.01)};
+    minTriangleTwist {mesh_quality_controls.get('MinTriangleTwist', -1)};
+    nSmoothScale {mesh_quality_controls.get('NSmoothScale', 4)};
+    errorReduction {mesh_quality_controls.get('ErrorReduction', 0.75)};
+}}
+"""
