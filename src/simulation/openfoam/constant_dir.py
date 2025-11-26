@@ -5,6 +5,10 @@ from templates.initial_settings_template import Settings
 def transport_properties_dict(setup: Settings, output_path: Path) -> None:
     """
     Fill the transportProperties file for OpenFOAM simulation.
+
+    Args:
+        setup (Settings): The simulation settings.
+        output_path (Path): The path to save the transportProperties file.
     """
     fluid = setup.simulation_settings.get("Fluid", {})
     transport_model = fluid.get("TransportModel", "Newtonian")
@@ -20,6 +24,11 @@ def generate_transport_properties_dict(
 ) -> str:
     """
     Generate transportProperties file content.
+
+    Args:
+        transport_model (str): The transport model.
+        nu (float): The kinematic viscosity.
+
     Returns:
         str: The filled transportProperties content.
     """
@@ -36,7 +45,12 @@ nu              [0 2 -1 0 0 0 0] {nu};"""
 
 def turbulence_properties_dict(setup: Settings, output_path: Path) -> None:
     """
-    Fill the turbulenceProperties file for OpenFOAM simulation.
+    Fill the turbulenceProperties file for OpenFOAM simulation based on the provided
+    settings.
+
+    Args:
+        setup (Settings): The simulation settings.
+        output_path (Path): The path to save the turbulenceProperties file.
     """
     turb = setup.simulation_settings.get("Turbulence", {})
     simulation_type = turb.get("SimulationType", "RAS")
@@ -61,6 +75,13 @@ def generate_turbulence_properties_dict(
 ) -> str:
     """
     Generate turbulenceProperties file content.
+
+    Args:
+        simulation_type (str): The simulation type.
+        turbulence (str): Turbulence setting.
+        print_coeffs (str): Print coefficients setting.
+        RAS_model (str): The RAS turbulence model.
+        
     Returns:
         str: The filled turbulenceProperties content.
     """

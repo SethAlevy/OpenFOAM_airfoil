@@ -1,6 +1,6 @@
 import numpy as np
+from pathlib import Path
 from scipy.interpolate import interp1d
-import trimesh
 
 
 def rotate_by_alpha(
@@ -25,7 +25,11 @@ def rotate_by_alpha(
     return x_rot, y_rot
 
 
-def resample_line(x, y, n_points):
+def resample_line(
+        x: np.ndarray,
+        y: np.ndarray,
+        n_points: int
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Resample a line defined by x and y coordinates to have n_points.
 
@@ -51,7 +55,8 @@ def validate_airfoil_designation(designation: str) -> tuple[bool, int]:
         designation (str): Airfoil designation string.
 
     Returns:
-        tuple[bool, int]: (is_naca, n_digits). is_naca is True if 'NACA' or 'naca' in name, n_digits is the number of digits after 'NACA' (0 if not NACA).
+        tuple[bool, int]: (is_naca, n_digits). is_naca is True if 'NACA' or 'naca' in
+        designation, n_digits is the number of digits after 'NACA' (0 if not NACA).
     """
     if "NACA" in designation or "naca" in designation:
         # Remove 'NACA'/'naca' and count digits
@@ -61,39 +66,56 @@ def validate_airfoil_designation(designation: str) -> tuple[bool, int]:
     return False, 0
 
 
-def kinematic_viscosity_air(T: float, rho: float) -> float:
+def kinematic_viscosity_air(temperature: float, density: float) -> float:
     """
     Calculate kinematic viscosity of air at temperature T [K] and density rho [kg/m^3].
     Uses Sutherland's formula for dynamic viscosity.
+
+    Args:
+        temperature (float): Temperature in Kelvin.
+        density (float): Density in kg/m^3.
+
+    Returns:
+        float: Kinematic viscosity in m^2/s.
     """
     mu0 = 1.716e-5      # Reference dynamic viscosity [kg/(m·s)]
     T0 = 273.15         # Reference temperature [K]
     S = 110.4           # Sutherland constant [K]
-    mu = mu0 * ((T / T0) ** 1.5) * (T0 + S) / (T + S)
-    nu = mu / rho
-    return nu
+    dynamic_viscosity = mu0 * ((temperature / T0) ** 1.5) * (T0 + S) / (temperature + S)
+    kinematic_viscosity = dynamic_viscosity / density
+    return kinematic_viscosity
 
 
-def international_standard_atmosphere(altitude: float, temperature: float, pressure: float, density: float) -> tuple:
+def international_standard_atmosphere(
+        altitude: float,
+        temperature: float,
+        pressure: float,
+        density: float
+) -> tuple:
     """
-    Calculate temperature [K] and density [kg/m^3] at a given altitude [m] using ISA.
+    Calculate temperature [K], pressure [Pa], and density [kg/m^3] at a given altitude
+    [m] using ISA.
+
+    Args:
+        altitude (float): Altitude in meters.
+        temperature (float): Temperature in Kelvin. If None, calculated from ISA.
+        pressure (float): Pressure in Pascals. If None, calculated from ISA.
+        density (float): Density in kg/m^3. If None, calculated from ISA.
+
+    Returns:
+        tuple: temperature [K], pressure [Pa], density [kg/m^3]
     """
     # Constants
     T0 = 288.15      # Sea level temperature [K]
     p0 = 101325      # Sea level pressure [Pa]
     L = 0.0065       # Temperature lapse rate [K/m]
-    g = 9.80665      # Gravity [m/s^2]
+    g = 9.80665      # Gravity acceleration [m/s^2]
     M = 0.0289644    # Molar mass of air [kg/mol]
     R = 8.3144598    # Universal gas constant [J/(mol·K)]
     R_specific = 287.05  # Specific gas constant for dry air [J/(kg·K)]
 
-    # Temperature at altitude
     isa_temperature = T0 - L * altitude
-
-    # Pressure at altitude
     isa_pressure = p0 * (1 - L * altitude / T0) ** (g * M / (R * L))
-
-    # Density at altitude
     isa_density = isa_pressure / (R_specific * isa_temperature)
 
     if temperature is None:
@@ -106,28 +128,46 @@ def international_standard_atmosphere(altitude: float, temperature: float, press
     return temperature, pressure, density
 
 
-def export_airfoil_to_stl_trimesh(x, y, output_path, thickness=0.01):
+def export_airfoil_to_stl_ascii(
+        x: np.ndarray,
+        y: np.ndarray,
+        output_path: Path,
+        thickness=0.02
+) -> None:
     """
-    Export an airfoil to an STL file using trimesh.
+    Export a 2D airfoil contour as a 3D extruded ASCII STL file, centered and extruded
+    in both +z and -z directions.
 
     Args:
-        x (np.ndarray): x-coordinates of the airfoil
-        y (np.ndarray): y-coordinates of the airfoil
-        output_path (str): path to the output STL file
-        thickness (float): thickness of the extrusion
-
-    Returns:
-        None
+        x (np.ndarray): x-coordinates of the closed airfoil contour.
+        y (np.ndarray): y-coordinates of the closed airfoil contour.
+        output_path (Path): STL file path.
+        thickness (float): Total extrusion thickness (extruded equally in +z and -z).
     """
-    # Create a 2D path from airfoil coordinates
-    airfoil_2d = np.column_stack((x, y))
-    path = trimesh.path.Path2D(entities=[trimesh.path.entities.Line(np.arange(len(x)))],
-                               vertices=airfoil_2d)
-    # Extrude the 2D path to 3D
-    meshes = path.extrude(thickness)
-    # If meshes is a list, combine them
-    if isinstance(meshes, list):
-        combined = trimesh.util.concatenate(meshes)
-    else:
-        combined = meshes
-    combined.export(output_path)
+    x = np.asarray(x)
+    y = np.asarray(y)
+    n = len(x)
+    z0, z1 = -thickness / 2, thickness / 2
+
+    # Top and bottom vertices
+    top = np.column_stack((x, y, np.full_like(x, z1)))
+    bottom = np.column_stack((x, y, np.full_like(x, z0)))
+
+    with open(output_path, 'w') as stl:
+        stl.write("solid airfoil\n")
+        for i in range(n - 1):
+            # Side faces (two triangles per quad)
+            v0, v1, v2, v3 = top[i], top[i + 1], bottom[i + 1], bottom[i]
+            # First triangle
+            stl.write("  facet normal 0 0 0\n    outer loop\n")
+            stl.write(f"      vertex {v0[0]} {v0[1]} {v0[2]}\n")
+            stl.write(f"      vertex {v1[0]} {v1[1]} {v1[2]}\n")
+            stl.write(f"      vertex {v2[0]} {v2[1]} {v2[2]}\n")
+            stl.write("    endloop\n  endfacet\n")
+            # Second triangle
+            stl.write("  facet normal 0 0 0\n    outer loop\n")
+            stl.write(f"      vertex {v0[0]} {v0[1]} {v0[2]}\n")
+            stl.write(f"      vertex {v2[0]} {v2[1]} {v2[2]}\n")
+            stl.write(f"      vertex {v3[0]} {v3[1]} {v3[2]}\n")
+            stl.write("    endloop\n  endfacet\n")
+        stl.write("endsolid airfoil\n")

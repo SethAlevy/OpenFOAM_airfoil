@@ -84,9 +84,29 @@ def generate_block_mesh_dict(
     lower_wall_patch: str = "lowerWall",
     upper_wall_patch: str = "upperWall",
     front_back_patch: str = "frontAndBack"
-):
+) -> str:
     """
-    Generate a simple BlockMesh dict for a 2D airfoil case with customizable patch names.
+    Generate a simple BlockMesh dict for a 2D airfoil case with customizable patch
+    names.
+
+    Args:
+        x_min (float): Minimum x coordinate of the bounding box.
+        x_max (float): Maximum x coordinate of the bounding box.
+        y_min (float): Minimum y coordinate of the bounding box.
+        y_max (float): Maximum y coordinate of the bounding box.
+        nx (int): Number of cells in the x direction.
+        ny (int): Number of cells in the y direction.
+        z_min (float): Minimum z coordinate of the bounding box.
+        z_max (float): Maximum z coordinate of the bounding box.
+        nz (int): Number of cells in the z direction.
+        inlet_patch (str): Name of the inlet patch.
+        outlet_patch (str): Name of the outlet patch.
+        lower_wall_patch (str): Name of the lower wall patch.
+        upper_wall_patch (str): Name of the upper wall patch.
+        front_back_patch (str): Name of the front and back patches.
+
+    Returns:
+        str: The content of the blockMeshDict file.
     """
     content = f"""FoamFile
 {{
@@ -236,6 +256,16 @@ def snappy_hex_mesh_dict(airfoil: Airfoil, setup: Settings, output_path: Path) -
 
 
 def refinement_box_dict(Airfoil: Airfoil) -> dict:
+    """
+    Define the refinement box around the airfoil. Size is assumed by taking the 
+    airfoils extreme coordinates and adding one chord length distance in each direction.
+
+    Args:
+        Airfoil (Airfoil): Object with the generated airfoil geometry.
+
+    Returns:
+        dict: Dictionary with the minimum and maximum coordinates of the refinement box.
+    """
     chord = Airfoil.chord
     upper_surface = Airfoil.upper_surface
     lower_surface = Airfoil.lower_surface
@@ -247,6 +277,18 @@ def refinement_box_dict(Airfoil: Airfoil) -> dict:
 
 
 def refine_sphere_dict(Airfoil: Airfoil, position: str, radius_scale: float) -> dict:
+    """
+    Define a refinement sphere around a specific position of the airfoil.
+
+    Args:
+        Airfoil (Airfoil): Object with the generated airfoil geometry.
+        position (str): Position on the airfoil to center the sphere (available
+            "tip" or "leading").
+        radius_scale (float): Scale factor for the sphere radius based on chord length.
+    Returns:
+        dict: Dictionary with the center coordinates and radius of the refinement
+            sphere.
+    """
     upper_surface = Airfoil.upper_surface
     chord = Airfoil.chord
 
@@ -275,7 +317,31 @@ def generate_snappy_hex_mesh_dict(
     mesh_quality_controls: dict = {},
 ):
     """
-    Generate a snappyHexMeshDict for a 2D airfoil case, using helper functions for sections.
+    Generate a snappyHexMeshDict for a semi-2D airfoil case, using helper functions 
+    for sections. Allows full control over the meshing process through settings 
+    file.
+
+    Args:
+        refinement_box (dict): Dictionary with the minimum and maximum coordinates of 
+            the airfoil refinement box.
+        refinement_box_level (int): Refinement level for the airfoil refinement box.
+        sphere_tip (dict): Dictionary with the center coordinates and radius of the
+            tip refinement sphere.
+        sphere_tip_level (int): Refinement level for the tip refinement sphere.
+        sphere_leading (dict): Dictionary with the center coordinates and radius of the
+            leading edge refinement sphere.
+        sphere_leading_level (int): Refinement level for the leading edge refinement
+            sphere.
+        feature_refinement_level (int): Refinement level for the edge features.
+        layer_controls (dict): Dictionary with the addLayersControls section settings.
+        snap_controls (dict): Dictionary with the snapControls section settings.
+        castellated_controls (dict): Dictionary with the castellatedMeshControls
+            section settings.
+        mesh_quality_controls (dict): Dictionary with the meshQualityControls section 
+            settings.
+
+    Returns:
+        str: The content of the snappyHexMeshDict file.
     """
     ref_box_geo, ref_box_reg = box_geometry_and_refinement_str(
         "refinementBox", refinement_box, refinement_box_level)
@@ -344,9 +410,22 @@ mergeTolerance 1E-6;
     return content
 
 
-def box_geometry_and_refinement_str(name, box, level):
+def box_geometry_and_refinement_str(
+        name: str,
+        box: dict,
+        level: int
+) -> tuple[str, str]:
     """
-    Generate geometry and refinement region strings for a box.
+    Generate geometry and refinement region strings for a refinement box around the
+    airfoil.
+
+    Args:
+        name (str): Name of the refinement box.
+        box (dict): Dictionary with the minimum and maximum coordinates of the box.
+        level (int): Refinement level for the box.
+
+    Returns:
+        tuple[str, str]: Geometry string and refinement region string for the box.
     """
     if not box:
         return "", ""
@@ -367,9 +446,22 @@ def box_geometry_and_refinement_str(name, box, level):
     return geometry_str, refinement_str
 
 
-def sphere_geometry_and_refinement_str(name, sphere, level):
+def sphere_geometry_and_refinement_str(
+        name: str,
+        sphere: dict,
+        level: int
+) -> tuple[str, str]:
     """
-    Generate geometry and refinement region strings for a sphere.
+    Generate geometry and refinement region strings for a sphere (around the tip or
+    leading edge).
+
+    Args:
+        name (str): Name of the refinement sphere.
+        sphere (dict): Dictionary with the center coordinates and radius of the sphere.
+        level (int): Refinement level for the sphere.
+
+    Returns:
+        tuple[str, str]: Geometry string and refinement region string for the sphere.
     """
     if not sphere:
         return "", ""
@@ -392,7 +484,12 @@ def sphere_geometry_and_refinement_str(name, sphere, level):
 
 def feature_str(feature_level: int = 0, feature_file: str = "airfoil.eMesh"):
     """
-    Generate the features section string for snappyHexMeshDict.
+    Generate the features section string for snappyHexMeshDict. If level is 0 skip
+    the section.
+
+    Args:
+        feature_level (int): Refinement level for the edge features.
+        feature_file (str): Filename of the edge feature file.
     """
     if feature_level != 0:
         return f"""    features
@@ -409,6 +506,12 @@ def feature_str(feature_level: int = 0, feature_file: str = "airfoil.eMesh"):
 def snap_controls_str(snap_controls: dict) -> str:
     """
     Generate the snapControls section string for snappyHexMeshDict from a dictionary.
+
+    Args:
+        snap_controls (dict): Dictionary with the snapControls section settings.
+
+    Returns:
+        str: The snapControls section string.
     """
     return f"""
 snapControls
@@ -424,7 +527,15 @@ snapControls
 
 def add_layers_controls_str(add_layers_controls: dict) -> str:
     """
-    Generate the addLayersControls section string for snappyHexMeshDict from a dictionary.
+    Generate the addLayersControls section string for snappyHexMeshDict from a
+    dictionary.
+
+    Args:
+        add_layers_controls (dict): Dictionary with the addLayersControls section
+            settings.
+
+    Returns:
+        str: The addLayersControls section string.
     """
     n_surface_layers = add_layers_controls.get('NSurfaceLayers', 0)
     return f"""
@@ -462,8 +573,17 @@ def castellated_mesh_controls_str(
     refinement_regions_str: str
 ) -> str:
     """
-    Generate the castellatedMeshControls section string for snappyHexMeshDict from a dictionary,
-    including refinementSurfaces creation with levels from the dict.
+    Generate the castellatedMeshControls section string for snappyHexMeshDict including
+    refinementSurfaces creation with levels from the dict.
+
+    Args:
+        castellated_controls (dict): Dictionary with the castellatedMeshControls
+            section settings.
+        features_str (str): The features section string.
+        refinement_regions_str (str): The refinementRegions section string.
+
+    Returns:
+        str: The castellatedMeshControls section string.
     """
     min_level = castellated_controls.get("MinSurfaceRefinementLevel", 0)
     max_level = castellated_controls.get("MaxSurfaceRefinementLevel", 0)
@@ -494,7 +614,15 @@ castellatedMeshControls
 
 def mesh_quality_controls_str(mesh_quality_controls: dict) -> str:
     """
-    Generate the meshQualityControls section string for snappyHexMeshDict from a dictionary.
+    Generate the meshQualityControls section string for snappyHexMeshDict from a
+    dictionary.
+
+    Args:
+        mesh_quality_controls (dict): Dictionary with the meshQualityControls
+            section settings.
+    
+    Returns:
+        str: The meshQualityControls section string.
     """
     return f"""
 meshQualityControls

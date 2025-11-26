@@ -4,6 +4,7 @@ from postprocess.visualizations import plot_airfoil
 from templates.airfoil_template import Airfoil
 from templates.initial_settings_template import Settings
 from scipy.interpolate import interp1d
+from utils.logger import SimpleLogger
 from pathlib import Path
 import utils.utilities as ut
 
@@ -23,7 +24,7 @@ class NACA4(Airfoil):
         Also allows fast plotting of the airfoil geometry.
 
         Passed arguments are prioritized, but if not provided, the class will try to
-        extract them from the Settings object (initial_settings.json).
+        extract them from the Settings object (initial settings json file).
 
         Args:
             designation (str): NACA 4-digit designation, e.g., '2412'
@@ -50,6 +51,7 @@ class NACA4(Airfoil):
         self.x = np.linspace(0, 1, self.resolution)
         self.x_alpha_zero = self.x.copy()
         self.m, self.p, self.t = self.extract_digits()
+        self.airfoil_details()
 
     def extract_digits(self) -> tuple[float, float, float]:
         """
@@ -62,12 +64,11 @@ class NACA4(Airfoil):
         m = int(self.designation[0]) / 100.0  # Maximum camber
         p = int(self.designation[1]) / 10.0    # Location of maximum camber
         t = int(self.designation[2:]) / 100.0   # Maximum thickness
-
         return m, p, t
 
     def _mean_camber_line(self, x: np.ndarray, m: float, p: float) -> np.ndarray:
         """
-        Calculate the mean camber line.
+        Calculate the mean camber line based on the NACA 4-digit designation.
 
         Args:
             x (np.ndarray): x-coordinates along the chord (0 to 1)
@@ -138,7 +139,8 @@ class NACA4(Airfoil):
 
     def _theta(self, dyc_dx: np.ndarray) -> np.ndarray:
         """
-        Calculate the angle theta.
+        Calculate the angle theta which the inverse tangent of the mean camber
+        derivative.
 
         Args:
             dyc_dx (np.ndarray): derivative dyc/dx of the mean camber line.
@@ -217,9 +219,12 @@ class NACA4(Airfoil):
         self._alpha = alpha
 
     @property
-    def mean_camber_line(self):
+    def mean_camber_line(self) -> tuple[np.ndarray, np.ndarray]:
         """
         Get the mean camber line coordinates eventually rotated by alpha.
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]: Two arrays with x and y coordinates.
         """
         yc = self._mean_camber_line(self.x_alpha_zero, self.m, self.p)
         return ut.rotate_by_alpha(
@@ -229,9 +234,12 @@ class NACA4(Airfoil):
         )
 
     @property
-    def upper_surface(self):
+    def upper_surface(self) -> tuple[np.ndarray, np.ndarray]:
         """
         Get the upper surface coordinates eventually rotated by alpha.
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]: Two arrays with x and y coordinates.
         """
         yc = self._mean_camber_line(self.x_alpha_zero, self.m, self.p)
         yt = self._thickness_distribution(self.x_alpha_zero, self.t)
@@ -245,9 +253,12 @@ class NACA4(Airfoil):
         )
 
     @property
-    def lower_surface(self):
+    def lower_surface(self) -> tuple[np.ndarray, np.ndarray]:
         """
         Get the lower surface coordinates eventually rotated by alpha.
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]: Two arrays with x and y coordinates.
         """
         yc = self._mean_camber_line(self.x_alpha_zero, self.m, self.p)
         yt = self._thickness_distribution(self.x_alpha_zero, self.t)
@@ -261,17 +272,23 @@ class NACA4(Airfoil):
         )
 
     @property
-    def theta(self):
+    def theta(self) -> np.ndarray:
         """
         Get the angle theta along the chord.
+
+        Returns:
+            np.ndarray: angle theta in radians.
         """
         dyc_dx = self._mean_camber_derivative(self.x_alpha_zero, self.m, self.p)
         return self._theta(dyc_dx)
 
     @property
-    def thickness(self):
+    def thickness(self) -> tuple[np.ndarray, np.ndarray]:
         """
         Get the thickness distribution coordinates eventually rotated by alpha.
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]: Two arrays with x and y coordinates.
         """
         thickness = self._thickness(self.x)
         thickness = np.array([
@@ -281,16 +298,22 @@ class NACA4(Airfoil):
         return ut.rotate_by_alpha(-self.alpha, thickness[0], thickness[1])
 
     @property
-    def chord(self):
+    def chord(self) -> float:
         """
         Get the chord length.
+
+        Returns:
+            float: chord length.
         """
         return self.chord_length
 
     @property
-    def alpha(self):
+    def alpha(self) -> float:
         """
         Get the angle of attack.
+
+        Returns:
+            float: angle of attack in degrees.
         """
         return self._alpha
 
@@ -319,19 +342,35 @@ class NACA4(Airfoil):
             -self.alpha,
         )
 
-    def to_stl(self, output_path) -> None:
+    def to_stl(self, output_path: Path) -> None:
         """
-        Export airfoil geometry to STL format.
+        Export airfoil geometry to an extruded STL contour (semi-3D) format. This form
+        is compatible with OpenFOAM meshing utilities which do not support fully 
+        2D geometries.
         """
-        ut.export_airfoil_to_stl_trimesh(
-            self.upper_surface,
-            self.lower_surface,
-            output_path
+        xu, yu = self.upper_surface
+        xl, yl = self.lower_surface
+        # Concatenate to form a closed contour
+        x_contour = np.concatenate([xu, xl[::-1]])
+        y_contour = np.concatenate([yu, yl[::-1]])
+        # Ensure the loop is closed
+        if not (x_contour[0] == x_contour[-1] and y_contour[0] == y_contour[-1]):
+            x_contour = np.append(x_contour, x_contour[0])
+            y_contour = np.append(y_contour, y_contour[0])
+        ut.export_airfoil_to_stl_ascii(x_contour, y_contour, output_path)
+
+    def airfoil_details(self):
+        """
+        Simple log with the airfoil details. 
+        """
+        SimpleLogger.log(
+            f"Airfoil: {self.designation}, "
+            f"Chord length: {self.chord_length}, "
+            f"Angle of attack: {self.alpha}"
         )
 
 
 class UIUCAirfoil:
-
     def __init__(
             self, designation: str = None,
             chord_length: float = None,
@@ -344,6 +383,9 @@ class UIUCAirfoil:
         resamples and provides surface lines, mean camber line, and thickness
         distribution. Is capable to apply angle of attack. The leading edge is
         always on (0, 0). Also allows fast plotting of the airfoil geometry.
+
+        Passed arguments are prioritized, but if not provided, the class will try to
+        extract them from the Settings object (initial settings json file).
 
         Args:
             designation (str): Designation of the airfoil, e.g., 'naca2412' or 'mh114'
@@ -368,15 +410,21 @@ class UIUCAirfoil:
         self._alpha = 0.0
 
         self._get_airfoil(self.designation)
+        self.airfoil_details()
 
-    def download_uiuc_airfoil(self, designation: str, save_dir: str = None) -> None:
+    def download_uiuc_airfoil(self, designation: str, save_dir: str = None) -> Path:
         """
-        Download an airfoil .dat file from the UIUC Airfoil Database.
+        Download an airfoil .dat file from the UIUC Airfoil Database
+        (https://m-selig.ae.illinois.edu/ads/coord_database.html).
+
         Args:
             designation (str): Designation of the airfoil, e.g., 'naca2412' or 'mh114'
             save_dir (str): Directory to save the downloaded file (relative to project
                 root). Defaults to input/airfoils.
-        """ 
+
+        Returns:
+            Path: Path to the downloaded file if successful, None otherwise.
+        """
         project_root = Path(__file__).resolve().parents[2]
         if save_dir is None:
             save_path_dir = project_root / "input/airfoils"
@@ -391,16 +439,17 @@ class UIUCAirfoil:
         if response.status_code == 200:
             with open(save_path, "w") as f:
                 f.write(response.text)
-            print(f"Downloaded {designation} to {save_path}")
+            SimpleLogger.log(f"Downloaded {designation} to {save_path}")
             return save_path
         else:
-            print(f"Airfoil '{designation}' not found at UIUC database.")
+            SimpleLogger.warning(f"Airfoil '{designation}' not found at UIUC database.")
 
-    def load_airfoil_dat(self, file_path: str) -> np.ndarray:
+    def load_airfoil_dat(self, file_path: Path) -> np.ndarray:
         """
         Load airfoil coordinates from a .dat file.
+
         Args:
-            file_path (str): Path to the .dat file
+            file_path (Path): Path to the .dat file
 
         Returns:
             np.ndarray: 2D array containing x and y coordinates
@@ -417,10 +466,13 @@ class UIUCAirfoil:
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Convert the UIUC dat file to get upper and lower surface coordinates.
+
         Args:
-            coords (np.ndarray): 2xN array with x and y coordinates.
+            coords (np.ndarray): 2D array with x and y coordinates.
+
         Returns:
-            (upper, lower): Tuple of arrays for upper and lower surfaces.
+            tuple[np.ndarray, np.ndarray]: Tuple of 2D arrays for upper and lower
+            surfaces.
         """
         x_coords, y_coords = coords
 
@@ -440,8 +492,9 @@ class UIUCAirfoil:
         """
         Get airfoil coordinates from UIUC database, resample coordinates, calculate
         mean camber line and thickness distribution.
+
         Args:
-            designation (str): Designation of the airfoil.
+            str: Designation of the airfoil.
         """
         file_path = self.download_uiuc_airfoil(designation)
         if not file_path:
@@ -460,13 +513,14 @@ class UIUCAirfoil:
     ) -> tuple[np.ndarray, np.ndarray]:
         """
         Resample airfoil coordinates to have n_points along the chord.
+
         Args:
             upper_line (np.ndarray): Original array of upper surface coordinates.
             lower_line (np.ndarray): Original array of lower surface coordinates.
 
         Returns:
-            (upper_line_resampled, lower_line_resampled): Arrays of resampled upper and
-                lower surface coordinates according to the specified number of points.
+            tuple[np.ndarray, np.ndarray]: Arrays of resampled upper and lower surface
+            coordinates.
         """
         upper_line_resampled = ut.resample_line(
             upper_line[0], upper_line[1], self.resolution)
@@ -501,7 +555,6 @@ class UIUCAirfoil:
         Calculate the thickness distribution from upper and lower surfaces lines.
 
         Returns:
-
             np.ndarray: Calculated array of thickness distribution coordinates.
         """
         x_upper, y_upper = self._upper_line_resampled
@@ -516,7 +569,7 @@ class UIUCAirfoil:
 
         thickness = y_upper_interp - np.abs(y_lower_interp)
         return np.array([x_common, thickness])
-    
+
     def set_angle_of_attack(self, alpha: float) -> None:
         """
         Apply angle of attack to the airfoil. Coordinate system assumes positive angle
@@ -529,7 +582,12 @@ class UIUCAirfoil:
 
     @property
     def upper_surface(self) -> np.ndarray:
-        """Get the upper surface coordinates."""
+        """
+        Get the upper surface coordinates eventually rotated by alpha.
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]: Two arrays with x and y coordinates.
+        """
         upper_line = np.array([
             self._upper_line_resampled[0] * self.chord_length,
             self._upper_line_resampled[1] * self.chord_length
@@ -538,7 +596,12 @@ class UIUCAirfoil:
 
     @property
     def lower_surface(self) -> np.ndarray:
-        """Get the lower surface coordinates."""
+        """
+        Get the lower surface coordinates eventually rotated by alpha.
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]: Two arrays with x and y coordinates.
+        """
         lower_line = np.array([
             self._lower_line_resampled[0] * self.chord_length,
             self._lower_line_resampled[1] * self.chord_length
@@ -547,7 +610,12 @@ class UIUCAirfoil:
 
     @property
     def mean_camber_line(self) -> np.ndarray:
-        """Get the mean camber line coordinates."""
+        """
+        Get the mean camber line coordinates eventually rotated by alpha.
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]: Two arrays with x and y coordinates.
+        """
         mean_camber_line = np.array([
             self._mean_camber_line[0] * self.chord_length,
             self._mean_camber_line[1] * self.chord_length
@@ -560,7 +628,12 @@ class UIUCAirfoil:
 
     @property
     def thickness(self) -> np.ndarray:
-        """Get the thickness distribution coordinates."""
+        """
+        Get the thickness distribution coordinates eventually rotated by alpha.
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]: Two arrays with x and y coordinates.
+        """
         thickness = np.array([
             self._thickness[0] * self.chord_length,
             self._thickness[1] * self.chord_length
@@ -569,12 +642,22 @@ class UIUCAirfoil:
 
     @property
     def chord(self) -> float:
-        """Get the chord length."""
+        """
+        Get the chord length.
+
+        Returns:
+            float: chord length.
+        """
         return self.chord_length
 
     @property
     def alpha(self) -> float:
-        """Get the angle of attack."""
+        """
+        Get the angle of attack.
+
+        Returns:
+            float: angle of attack in degrees.
+        """
         return self._alpha
 
     def plot(
@@ -589,6 +672,7 @@ class UIUCAirfoil:
         Args:
             title (str): Title of the plot.
             save_path (Path): Path to save the plot image. If None, the plot is shown.
+            show (bool): Whether to display the plot.
         """
         plot_airfoil(
             self.upper_surface,
@@ -604,9 +688,30 @@ class UIUCAirfoil:
 
     def to_stl(self, output_path) -> None:
         """
-        Export airfoil geometry to STL format.
+        Export airfoil geometry to an extruded STL contour (semi-3D) format. This form
+        is compatible with OpenFOAM meshing utilities which do not support fully 
+        2D geometries.
+
+        Args:
+            output_path (Path): Path to save the STL file.
         """
-        ut.export_airfoil_to_stl_trimesh(
-            self.upper_surface,
-            self.lower_surface,
-            output_path)
+        xu, yu = self.upper_surface
+        xl, yl = self.lower_surface
+        # Concatenate to form a closed contour
+        x_contour = np.concatenate([xu, xl[::-1]])
+        y_contour = np.concatenate([yu, yl[::-1]])
+        # Ensure the loop is closed
+        if not (x_contour[0] == x_contour[-1] and y_contour[0] == y_contour[-1]):
+            x_contour = np.append(x_contour, x_contour[0])
+            y_contour = np.append(y_contour, y_contour[0])
+        ut.export_airfoil_to_stl_ascii(x_contour, y_contour, output_path)
+
+    def airfoil_details(self):
+        """
+        Simple log with the airfoil details. 
+        """
+        SimpleLogger.log(
+            f"Airfoil: {self.designation}, "
+            f"Chord length: {self.chord_length}, "
+            f"Angle of attack: {self.alpha}"
+        )

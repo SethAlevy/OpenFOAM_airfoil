@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from pathlib import Path
 import numpy as np
 
 
@@ -6,7 +7,7 @@ def plot_airfoil(
         upper_coords: np.ndarray,
         lower_coords: np.ndarray,
         title: str = "Airfoil",
-        save_path: str = None,
+        save_path: Path = None,
         show: bool = True,
         mean_camber_coords: np.ndarray = None,
         thickness_coords: np.ndarray = None,
@@ -15,13 +16,14 @@ def plot_airfoil(
 ) -> None:
     """
     Plot the airfoil geometry including upper surface, lower surface, mean camber
-    line, thickness distribution, and chord.
+    line, thickness distribution, and chord. The airfoil is rotated by the angle of
+    attack alpha.
     
     Args:
         upper_coords (np.ndarray): Coordinates of the upper surface.
         lower_coords (np.ndarray): Coordinates of the lower surface.
         title (str): Title of the plot.
-        save_path (str): Path to save the plot image. If None, the plot is shown.
+        save_path (Path): Path to save the plot image. If None, the plot is shown.
         show (bool): Whether to display the plot.
         mean_camber_coords (np.ndarray): Coordinates of the mean camber line.
         thickness_coords (np.ndarray): Coordinates of the thickness distribution.
@@ -74,5 +76,5 @@ def plot_airfoil(
     plt.legend()
     if save_path:
         plt.savefig(save_path) 
-    if show:
+    if show or save_path is None:
         plt.show()

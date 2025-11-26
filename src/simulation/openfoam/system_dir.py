@@ -4,7 +4,12 @@ from templates.initial_settings_template import Settings
 
 def control_dict(setup: Settings, output_path: Path) -> None:
     """
-    Fill the controlDict file for OpenFOAM simulation.
+    Fill the controlDict file for OpenFOAM simulation based on the provided settings.
+    Then write the file.
+
+    Args:
+        setup (Settings): The simulation settings.
+        output_path (Path): The path to save the controlDict file.
     """
     control_dict_setup = setup.simulation_settings.get("ControlDict", {})
     solver = control_dict_setup.get("Solver", "simpleFoam")
@@ -63,8 +68,27 @@ def generate_control_dict(
 ) -> str:
     """
     Generate controlDict file content with essential parameters.
+
+    Args:
+        solver (str): The solver to use.
+        start_from (str): Time to start from.
+        start_time (float): The start time.
+        stop_at (str): Condition to stop at.
+        end_time (float): The end time.
+        delta_t (float): Time step size.
+        write_control (str): Write control type.
+        write_interval (int): Interval for writing data.
+        purge_write (int): Number of time directories to keep.
+        write_format (str): Format for writing data.
+        write_precision (int): Precision for writing data.
+        write_compression (str): Compression for writing data.
+        time_format (str): Format for time representation.
+        time_precision (int): Precision for time representation.
+        run_time_modifiable (str): Whether runtime modifiable is enabled.
+
     Returns:
         str: The filled controlDict content.
+
     """
     content = f"""FoamFile
 {{
@@ -96,7 +120,11 @@ runTimeModifiable {run_time_modifiable};
 
 def fv_solution_dict(setup: Settings, output_path: Path) -> None:
     """
-    Fill the fvSolution file for OpenFOAM simulation.
+    Fill the fvSolution file for OpenFOAM simulation based on the provided settings.
+    
+    Args:
+        setup (Settings): The simulation settings.
+        output_path (Path): The path to save the fvSolution file.
     """
     fv_solution_setup = setup.simulation_settings.get("FvSolution", {})
     p_solver = fv_solution_setup.get("p_solver", "PCG")
@@ -169,7 +197,31 @@ def generate_fv_solution_dict(
         cache: str = "grad(U);"
 ) -> str:
     """
-    Generate fvSolution file content suitable for an airfoil simulation.
+    Generate fvSolution file content suitable for an airfoil simulation with essential
+    parameters.
+    
+    Args:
+        p_solver (str): Solver for pressure.
+        p_preconditioner (str): Preconditioner for pressure solver.
+        p_tolerance (float): Tolerance for pressure solver.
+        p_rel_tol (float): Relative tolerance for pressure solver.
+        U_solver (str): Solver for velocity.
+        U_smoother (str): Smoother for velocity solver.
+        U_tolerance (float): Tolerance for velocity solver.
+        U_rel_tol (float): Relative tolerance for velocity solver.
+        turb_solver (str): Solver for turbulence quantities.
+        turb_smoother (str): Smoother for turbulence solver.
+        turb_tolerance (float): Tolerance for turbulence solver.
+        turb_rel_tol (float): Relative tolerance for turbulence solver.
+        n_non_ortho_correctors (int): Number of non-orthogonal correctors.
+        relaxation_p (float): Relaxation factor for pressure.
+        relaxation_U (float): Relaxation factor for velocity.
+        relaxation_k (float): Relaxation factor for turbulent kinetic energy.
+        relaxation_omega (float): Relaxation factor for specific dissipation rate.
+        relaxation_epsilon (float): Relaxation factor for dissipation rate.
+        relaxation_nuTilda (float): Relaxation factor for turbulent viscosity.
+        cache (str): Cache settings.
+
     Returns:
         str: The filled fvSolution content.
     """
@@ -236,7 +288,11 @@ cache
 
 def fv_schemes_dict(setup: Settings, output_path: Path) -> None:
     """
-    Fill the fvSchemes file for OpenFOAM simulation.
+    Fill the fvSchemes file for OpenFOAM simulation based on the provided settings.
+    
+    Args:
+        setup (Settings): The simulation settings.
+        output_path (Path): The path to save the fvSchemes file.
     """
     fv_schemes_setup = setup.simulation_settings.get("Schemes", {})
     time_scheme = fv_schemes_setup.get("TimeScheme", "steadyState")
@@ -274,6 +330,17 @@ def generate_fv_schemes_dict(
 ) -> str:
     """
     Generate fvSchemes file content with essential parameters.
+
+    Args:
+        time_scheme (str): Time discretization scheme.
+        grad_scheme (str): Gradient scheme.
+        div_scheme_U (str): Divergence scheme for velocity.
+        div_scheme_phi_k (str): Divergence scheme for turbulent kinetic energy.
+        div_scheme_phi_epsilon (str): Divergence scheme for dissipation rate.
+        laplacian_scheme (str): Laplacian scheme.
+        interpolation_scheme (str): Interpolation scheme.
+        sn_grad_scheme (str): SnGrad scheme.
+
     Returns:
         str: The filled fvSchemes content.
     """
@@ -322,7 +389,12 @@ snGradSchemes
 
 def decompose_par_dict(setup: Settings, output_path: Path) -> None:
     """
-    Fill the decomposeParDict file for OpenFOAM simulation.
+    Fill the decomposeParDict file for OpenFOAM simulation based on the provided
+    settings.
+
+    Args:
+        setup (Settings): The simulation settings.
+        output_path (Path): The path to save the decomposeParDict file.
     """
     number_of_subdomains = setup.simulation_settings.get("Decomposition", {}).get(
         "NumberOfSubdomains", 4)
@@ -343,6 +415,11 @@ def generate_decompose_par_dict(
 ) -> str:
     """
     Generate a minimal decomposeParDict file content.
+
+    Args:
+        number_of_subdomains (int): Number of subdomains.
+        method (str): Decomposition method.
+
     Returns:
         str: The filled decomposeParDict content.
     """
@@ -366,7 +443,11 @@ roots           ();
 
 def surface_feature_extract_dict(setup: Settings, output_path: Path) -> None:
     """
-    Fill the surfaceFeatureExtractDict file for OpenFOAM simulation.
+    Fill the surfaceFeatureExtractDict file for OpenFOAM simulation based on the provided
+
+    Args:
+        setup (Settings): The simulation settings.
+        output_path (Path): The path to save the surfaceFeatureExtractDict file.
     """
     sfe_settings = setup.simulation_settings.get("SurfaceFeatureExtract", {})
     stl_file = sfe_settings.get("StlFile", "airfoil.stl")
@@ -392,6 +473,13 @@ def generate_surface_feature_extract_dict(
 ) -> str:
     """
     Generate surfaceFeatureExtractDict file content.
+    
+    Args:
+        stl_file (str): The STL file name.
+        extraction_method (str): The extraction method.
+        included_angle (int): The included angle.
+        write_obj (str): Whether to write OBJ file.
+
     Returns:
         str: The filled surfaceFeatureExtractDict content.
     """
