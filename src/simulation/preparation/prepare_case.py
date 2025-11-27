@@ -1,115 +1,116 @@
+import argparse
 from pathlib import Path
-from simulation.openfoam.mesh import block_mesh_dict, snappy_hex_mesh_dict
-from simulation.openfoam.system_dir import control_dict, fv_solution_dict, \
-      fv_schemes_dict
-from simulation.openfoam.constant_dir import transport_properties_dict, \
-      turbulence_properties_dict
-from simulation.openfoam.boundary_condition import BoundaryConditions
-from templates.airfoil_template import Airfoil
-from templates.initial_settings_template import Settings
+from settings.initial_settings import InitialSettingsReader
+import airfoil.airfoil as af
+from simulation.preparation.case_structure import prepare_openfoam_case
+import utils.utilities as ut
+from utils.logger import SimpleLogger
 
 
-def prepare_openfoam_case(
-        working_path: Path,
-        case_name: str,
-        airfoil: Airfoil,
-        setup: Settings
-) -> None:
-    """
-    Prepares the OpenFOAM case by setting up necessary files and directories.
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description="Prepare OpenFOAM case structure and files based on the passed"
+        " configuration."
+    )
 
-    Args:
-        working_path (Path): The base working directory path.
-        case_name (str): The name of the case.
-        airfoil (Airfoil): The airfoil object containing geometry data.
-        setup (Settings): The simulation settings.
-    """
-    create_directory_structure(working_path, case_name)
+    parser.add_argument(
+        '--working-dir',
+        type=Path,
+        required=False,
+        default=Path(__file__).parent.parent.parent.parent.resolve(),
+        help='Path to the directory where the case will be prepared. Main repository'
+        ' path is the default.'
+    )
 
-    mesher = setup.mesh_settings.get("Mesher")
-    create_meshing_files(working_path / case_name, airfoil, setup, mesher)
-    create_system_files(working_path / case_name, setup)
-    create_constant_files(working_path / case_name, setup)
-    create_boundary_conditions_files(working_path / case_name / "0", setup)
+    parser.add_argument(
+        '--setup-file',
+        type=Path,
+        required=True,
+        help='Path to the setup configuration json file. The file contains all'
+        ' parameters that define the simulation.'
+    )
 
-    airfoil.to_stl(working_path / case_name / "constant" / "triSurface" / "airfoil.stl")
+    parser.add_argument(
+        '--case-name',
+        type=str,
+        required=False,
+        default=None,
+        help='Name of the case directory to be created within the working directory.'
+    )
 
+    parser.add_argument(
+        "--resolution",
+        type=int,
+        required=False,
+        default=200,
+        help="Number of points to define the airfoil geometry."
+    )
 
-def create_directory_structure(working_path: Path, case_name: str) -> None:
-    """
-    Creates the required directory structure for the OpenFOAM case.
-
-    Args:
-        working_path (Path): The base working directory path.
-        case_name (str): The name of the case.
-    """
-    working_path.mkdir(parents=True, exist_ok=True)
-    (working_path / case_name).mkdir(exist_ok=True)
-
-    (working_path / case_name / "0").mkdir(exist_ok=True)
-    (working_path / case_name / "constant").mkdir(exist_ok=True)
-    (working_path / case_name / "constant" / "triSurface").mkdir(exist_ok=True)
-    (working_path / case_name / "system").mkdir(exist_ok=True)
-
-
-def create_meshing_files(
-        case_path: Path,
-        airfoil: Airfoil,
-        setup: Settings,
-        mesher: str
-) -> None:
-    """
-    Creates meshing files for the OpenFOAM case.
-
-    Args:
-        case_path (Path): The path to the case directory.
-        airfoil (Airfoil): The airfoil object containing geometry data.
-        setup (Settings): The simulation settings.
-        mesher (str): The meshing method to use (e.g., "blockMesh", "snappyHexMesh").
-    """
-
-    block_mesh_dict(airfoil, setup, (case_path / "system"))
-
-    if mesher == "snappyHexMesh":
-        snappy_hex_mesh_dict(airfoil, setup, (case_path / "system"))
+    return parser.parse_args()
 
 
-def create_system_files(case_path: Path, setup: Settings) -> None:
-    """
-    Creates system files for the OpenFOAM case.
+def prepare_case():
+    args = parse_arguments()
+    working_dir = args.working_dir
+    setup_file = args.setup_file
+    resolution = args.resolution
 
-    Args:
-        case_path (Path): The path to the case directory.
-        setup (Settings): The simulation settings.
-    """
-    control_dict(setup, (case_path / "system" / "controlDict"))
-    fv_solution_dict(setup, (case_path / "system" / "fvSolution"))
-    fv_schemes_dict(setup, (case_path / "system" / "fvSchemes"))
+    setup = InitialSettingsReader(setup_file)
+
+    airfoil_settings = setup.airfoil_settings()
+
+    designation = airfoil_settings.get("Designation")
+    chord = airfoil_settings.get("Chord")
+    case_name = args.case_name if args.case_name is not None else f"case_{designation}"
+
+    if bool(airfoil_settings.get("GenerateNACA")):
+        naca, digits = ut.extract_naca_from_designation(designation)
+        if not naca:
+            raise ValueError(
+                f"Invalid NACA designation '{designation}' for airfoil generation."
+            )
+        
+        if len(digits) == 4:
+            airfoil = af.NACA4(int(digits), setup, resolution, chord)
+        elif len(digits) == 5:
+            airfoil = af.NACA5(int(digits), setup, resolution, chord)
+        else:
+            raise ValueError(
+                "Unsupported number of digits. Only NACA 4 and 5 digit airfoils"
+                " available."
+            )
+
+        SimpleLogger.log(f"Generated airfoil: {airfoil}")
+    
+    elif bool(airfoil_settings.get("DownloadUIUC")):
+        airfoil = af.UIUCAirfoil(
+            designation,
+            setup,
+            resolution,
+            chord
+        )
+
+        SimpleLogger.log(f"Downloaded airfoil: {airfoil}")
+
+    elif bool(airfoil_settings.get("LoadFromFile")):
+        file_path = airfoil_settings.get("LoadFilePath", None)
+        if file_path is None or not Path(file_path).is_file():
+            raise FileNotFoundError(
+                f"Airfoil file path '{file_path}' is invalid or does not exist."
+            )
+        # TODO dat file loader
+
+        SimpleLogger.log(f"Loaded airfoil from file: {airfoil}")
+
+    SimpleLogger.log(f"Preparing case '{case_name}' in '{working_dir}'")
+    prepare_openfoam_case(
+        working_dir,
+        case_name,
+        airfoil,
+        setup.mesh_settings,
+        setup.simulation_settings
+    )
 
 
-def create_constant_files(case_path: Path, setup: Settings) -> None:
-    """
-    Creates constant directory files for the OpenFOAM case.
-
-    Args:
-        case_path (Path): The path to the case directory.
-        setup (Settings): The simulation settings.
-    """
-    transport_properties_dict(setup, (case_path / "constant" / "transportProperties"))
-    turbulence_properties_dict(setup, (case_path / "constant" / "turbulenceProperties"))
-
-
-def create_boundary_conditions_files(case_path: Path, setup: Settings) -> None:
-    """
-    Creates boundary condition files for the OpenFOAM case.
-
-    Args:
-        case_path (Path): The path to the case directory.
-        setup (Settings): The simulation settings.
-    """
-    bc = BoundaryConditions(setup=setup)
-    velocity_content = bc.velocity_bc()
-    pressure_content = bc.pressure_bc()
-
-    bc.write_bc(velocity_content, case_path / "U")
-    bc.write_bc(pressure_content, case_path / "p")
+if __name__ == "__main__":
+    prepare_case()

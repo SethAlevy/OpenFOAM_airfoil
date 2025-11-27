@@ -1,10 +1,10 @@
 {
     "Airfoil": {
-        "Designation": "NACA4415",
-        "GenerateNACA4": true,
-        "GenerateNACA5": false,
+        "GenerateNACA": true,
         "DownloadUIUC": false,
-        "LoadFilePath": false,
+        "Designation": "NACA4415",
+        "LoadFromFile": false,
+        "LoadFilePath": "",
         "Chord": 1.2,
         "Resolution": 200
     },

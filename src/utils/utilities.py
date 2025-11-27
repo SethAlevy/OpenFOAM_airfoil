@@ -47,23 +47,24 @@ def resample_line(
     return x_new, y_new
 
 
-def validate_airfoil_designation(designation: str) -> tuple[bool, int]:
+def split_naca_designation(designation: str) -> tuple[bool, str]:
     """
-    Validate if the airfoil designation is a NACA type and get the number of digits.
+    Split the airfoil designation is is a NACA type and get digits.
 
     Args:
         designation (str): Airfoil designation string.
 
     Returns:
-        tuple[bool, int]: (is_naca, n_digits). is_naca is True if 'NACA' or 'naca' in
-        designation, n_digits is the number of digits after 'NACA' (0 if not NACA).
+        tuple[bool, str]: (is_naca, digits). is_naca is True if 'NACA' or 'naca' in
+        designation, digits is the string of digits after 'NACA' (empty string if not
+        NACA).
     """
     if "NACA" in designation or "naca" in designation:
         # Remove 'NACA'/'naca' and count digits
         digits = ''.join(
             filter(str.isdigit, designation.replace("NACA", "").replace("naca", "")))
-        return True, len(digits)
-    return False, 0
+        return True, digits
+    return False, digits
 
 
 def kinematic_viscosity_air(temperature: float, density: float) -> float:

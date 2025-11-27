@@ -370,6 +370,406 @@ class NACA4(Airfoil):
         )
 
 
+class NACA5(Airfoil):
+    def __init__(
+            self,
+            designation: str = None,
+            chord_length: float = None,
+            resolution: int = None,
+            setup: Settings = None
+    ):
+        """
+        Class to generate NACA 5-digit airfoil. Provides coordinates for the surface
+        lines, mean camber, thickness distribution, and angle theta along the chord.
+        Is capable to apply angle of attack. The leading edge is always on (0, 0).
+        Also allows fast plotting of the airfoil geometry.
+
+        Passed arguments are prioritized, but if not provided, the class will try to
+        extract them from the Settings object (initial settings json file).
+
+        Args:
+            designation (str): NACA 5-digit designation, e.g., '23012'
+            chord_length (float): Chord length of the airfoil in meters.
+            resolution (int): Number of points to discretize the airfoil surface along.
+            setup (Settings): Settings object to extract initial parameters from.
+        """
+        if designation is None:
+            self.designation = setup.airfoil_settings.get("Designation")
+        else:
+            self.designation = designation
+
+        if chord_length is None:
+            self.chord_length = setup.airfoil_settings.get("Chord")
+        else:
+            self.chord_length = chord_length
+
+        if resolution is None:
+            self.resolution = setup.airfoil_settings.get("Resolution")
+        else:
+            self.resolution = resolution
+        self._alpha = 0.0
+
+        self.x = np.linspace(0, 1, self.resolution)
+        self.x_alpha_zero = self.x.copy()
+        self.cl, self.p, self.q, self.t = self.extract_digits()
+        self.airfoil_details()
+
+    def extract_digits(self) -> tuple[float, float, int, float]:
+        """
+        Extract the digits from the NACA 5-digit designation.
+
+        Returns:
+            (cl, p, q, t): design lift coefficient, position of max camber,
+                camber type, and maximum thickness as fractions of chord length.
+        """
+        cl = int(self.designation[0]) * 0.15  # design lift coefficient
+        p = int(self.designation[1]) / 20.0   # position of max camber
+        q = int(self.designation[2])          # camber type (0 or 1)
+        t = int(self.designation[3:]) / 100.0  # thickness
+        return cl, p, q, t
+
+    def _mean_camber_line(
+            self,
+            x: np.ndarray, 
+            cl: float,
+            p: float,
+            q: int
+    ) -> np.ndarray:
+        """
+        Calculate the mean camber line based on the NACA 5-digit designation.
+
+        Args:
+            x (np.ndarray): x-coordinates along the chord (0 to 1)
+            cl (float): design lift coefficient
+            p (float): position of max camber
+            q (int): camber type (0 for normal, 1 for reflex)
+
+        Returns:
+            np.ndarray: y-coordinates of the mean camber line.
+        """
+        m = p
+        if q == 0:  # normal camber
+            k1 = 15.957 * cl
+            yc = np.where(
+                x < m,
+                k1 / 6 * (x**3 - 3 * m * x**2 + m**2 * (3 - m) * x),
+                k1 * m**3 / 6 * (1 - x)
+            )
+        else:  # reflex camber
+            k2 = 51.99 * cl
+            a = 0.2025
+            yc = np.where(
+                x < m,
+                k2 / 6 * (x**3 - 3 * m * x**2 + m**2 * (3 - m) * x + a * (m - x)**3),
+                k2 * m**3 / 6 * (1 - x)
+            )
+        return yc
+
+    def _thickness_distribution(
+            self,
+            x: np.ndarray,
+            t: float,
+            closed: bool = True
+    ) -> np.ndarray:
+        """
+        Calculate the thickness distribution.
+
+        Args:
+            x (np.ndarray): x-coordinates along the chord (0 to 1)
+            t (float): maximum thickness
+            closed (bool): whether the trailing edge is closed or not.
+
+        Returns:
+            np.ndarray: y-coordinates of the thickness distribution.
+        """
+        x1 = 0.2969
+        x2 = -0.1260
+        x3 = -0.3516
+        x4 = 0.2843
+        x5 = -0.1015 if closed else -0.1036
+
+        yt = 5 * t * (
+            x1 * np.sqrt(x)
+            + x2 * x
+            + x3 * x ** 2
+            + x4 * x ** 3
+            + x5 * x ** 4
+        )
+        return yt
+
+    def _mean_camber_derivative(
+            self,
+            x: np.ndarray,
+            cl: float,
+            p: float,
+            q: int
+    ) -> np.ndarray:
+        """
+        Calculate the derivative of the mean camber line.
+
+        Args:
+            x (np.ndarray): x-coordinates along the chord (0 to 1)
+            cl (float): design lift coefficient
+            p (float): position of max camber
+            q (int): camber type
+
+        Returns:
+            np.ndarray: derivative dyc/dx of the mean camber line.
+        """
+        m = p
+        if q == 0:
+            k1 = 15.957 * cl
+            dyc_dx = np.where(
+                x < m,
+                k1 / 6 * (3 * x**2 - 6 * m * x + m**2 * (3 - m)),
+                -k1 * m**3 / 6
+            )
+        else:
+            k2 = 51.99 * cl
+            a = 0.2025
+            dyc_dx = np.where(
+                x < m,
+                k2 / 6 * (3 * x**2 - 6 * m * x + m**2 * (3 - m) - 3 * a * (m - x)**2),
+                -k2 * m**3 / 6
+            )
+        return dyc_dx
+
+    def _theta(self, dyc_dx: np.ndarray) -> np.ndarray:
+        """
+        Calculate the angle theta which is the inverse tangent of the mean camber
+        derivative.
+
+        Args:
+            dyc_dx (np.ndarray): derivative dyc/dx of the mean camber line.
+
+        Returns:
+            np.ndarray: angle theta in radians.
+        """
+        return np.arctan(dyc_dx)
+
+    def _upper_surface(
+            self,
+            x: np.ndarray,
+            yc: np.ndarray,
+            yt: np.ndarray,
+            theta: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Calculate the upper surface coordinates.
+
+        Args:
+            x (np.ndarray): x-coordinates along the chord (0 to 1)
+            yc (np.ndarray): y-coordinates of the mean camber line
+            yt (np.ndarray): y-coordinates of the thickness distribution
+            theta (np.ndarray): angle theta in radians
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]: (xu, yu) upper surface coordinates
+        """
+        xu = x - yt * np.sin(theta)
+        yu = yc + yt * np.cos(theta)
+        return xu, yu
+
+    def _lower_surface(
+            self,
+            x: np.ndarray,
+            yc: np.ndarray,
+            yt: np.ndarray,
+            theta: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Calculate the lower surface coordinates.
+
+        Args:
+            x (np.ndarray): x-coordinates along the chord (0 to 1)
+            yc (np.ndarray): y-coordinates of the mean camber line
+            yt (np.ndarray): y-coordinates of the thickness distribution
+            theta (np.ndarray): angle theta in radians
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]: (xl, yl) lower surface coordinates
+        """
+        xl = x + yt * np.sin(theta)
+        yl = yc - yt * np.cos(theta)
+        return xl, yl
+
+    def _thickness(self, x: np.ndarray) -> np.ndarray:
+        """
+        Get the thickness distribution coordinates.
+
+        Args:
+            x (np.ndarray): x-coordinates along the chord (0 to 1)
+
+        Returns:
+            np.ndarray: 2D array of thickness distribution coordinates.
+        """
+        return self._thickness_distribution(x, self.t)
+
+    def set_angle_of_attack(self, alpha: float) -> None:
+        """
+        Apply angle of attack to the airfoil. Coordinate system assumes positive angle
+        is clockwise. Rotation is done around the leading edge (0, 0).
+
+        Args:
+            alpha (float): Angle of attack in degrees.
+        """
+        self._alpha = alpha
+
+    @property
+    def mean_camber_line(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Get the mean camber line coordinates eventually rotated by alpha.
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]: Two arrays with x and y coordinates.
+        """
+        yc = self._mean_camber_line(self.x_alpha_zero, self.cl, self.p, self.q)
+        return ut.rotate_by_alpha(
+            -self.alpha,
+            self.x_alpha_zero * self.chord_length,
+            yc * self.chord_length
+        )
+
+    @property
+    def upper_surface(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Get the upper surface coordinates eventually rotated by alpha.
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]: Two arrays with x and y coordinates.
+        """
+        yc = self._mean_camber_line(self.x_alpha_zero, self.cl, self.p, self.q)
+        yt = self._thickness_distribution(self.x_alpha_zero, self.t)
+        dyc_dx = self._mean_camber_derivative(
+            self.x_alpha_zero, self.cl, self.p, self.q)
+        theta = self._theta(dyc_dx)
+        xu, yu = self._upper_surface(self.x_alpha_zero, yc, yt, theta)
+        return ut.rotate_by_alpha(
+            -self.alpha,
+            xu * self.chord_length,
+            yu * self.chord_length
+        )
+
+    @property
+    def lower_surface(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Get the lower surface coordinates eventually rotated by alpha.
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]: Two arrays with x and y coordinates.
+        """
+        yc = self._mean_camber_line(self.x_alpha_zero, self.cl, self.p, self.q)
+        yt = self._thickness_distribution(self.x_alpha_zero, self.t)
+        dyc_dx = self._mean_camber_derivative(
+            self.x_alpha_zero, self.cl, self.p, self.q)
+        theta = self._theta(dyc_dx)
+        xl, yl = self._lower_surface(self.x_alpha_zero, yc, yt, theta)
+        return ut.rotate_by_alpha(
+            -self.alpha,
+            xl * self.chord_length,
+            yl * self.chord_length
+        )
+
+    @property
+    def theta(self) -> np.ndarray:
+        """
+        Get the angle theta along the chord.
+
+        Returns:
+            np.ndarray: angle theta in radians.
+        """
+        dyc_dx = self._mean_camber_derivative(
+            self.x_alpha_zero, self.cl, self.p, self.q)
+        return self._theta(dyc_dx)
+
+    @property
+    def thickness(self) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Get the thickness distribution coordinates eventually rotated by alpha.
+
+        Returns:
+            tuple[np.ndarray, np.ndarray]: Two arrays with x and y coordinates.
+        """
+        thickness = self._thickness(self.x)
+        thickness = np.array([
+            self.x * self.chord_length,
+            thickness * self.chord_length
+        ])
+        return ut.rotate_by_alpha(-self.alpha, thickness[0], thickness[1])
+
+    @property
+    def chord(self) -> float:
+        """
+        Get the chord length.
+
+        Returns:
+            float: chord length.
+        """
+        return self.chord_length
+
+    @property
+    def alpha(self) -> float:
+        """
+        Get the angle of attack.
+
+        Returns:
+            float: angle of attack in degrees.
+        """
+        return self._alpha
+
+    def plot(
+            self, title: str = "NACA 5 Airfoil",
+            save_path: Path = None,
+            show: bool = True
+    ) -> None:
+        """
+        Plot the airfoil geometry.
+
+        Args:
+            title (str): Title of the plot.
+            save_path (Path): Path to save the plot image. If None, the plot is shown.
+            show (bool): Whether to display the plot.
+        """
+        plot_airfoil(
+            self.upper_surface,
+            self.lower_surface,
+            title,
+            save_path,
+            show,
+            self.mean_camber_line,
+            self.thickness,
+            self.chord,
+            -self.alpha,
+        )
+
+    def to_stl(self, output_path: Path) -> None:
+        """
+        Export airfoil geometry to an extruded STL contour (semi-3D) format. This form
+        is compatible with OpenFOAM meshing utilities which do not support fully 
+        2D geometries.
+        """
+        xu, yu = self.upper_surface
+        xl, yl = self.lower_surface
+        # Concatenate to form a closed contour
+        x_contour = np.concatenate([xu, xl[::-1]])
+        y_contour = np.concatenate([yu, yl[::-1]])
+        # Ensure the loop is closed
+        if not (x_contour[0] == x_contour[-1] and y_contour[0] == y_contour[-1]):
+            x_contour = np.append(x_contour, x_contour[0])
+            y_contour = np.append(y_contour, y_contour[0])
+        ut.export_airfoil_to_stl_ascii(x_contour, y_contour, output_path)
+
+    def airfoil_details(self):
+        """
+        Simple log with the airfoil details. 
+        """
+        SimpleLogger.log(
+            f"Airfoil: {self.designation}, "
+            f"Chord length: {self.chord_length}, "
+            f"Angle of attack: {self.alpha}"
+        )
+
+
 class UIUCAirfoil:
     def __init__(
             self, designation: str = None,

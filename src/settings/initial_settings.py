@@ -109,7 +109,8 @@ class InitialSettingsReader():
                 "GenerateNACA4": False,
                 "GenerateNACA5": False,
                 "DownloadUIUC": False,
-                "LoadFilePath": False,
+                "LoadFromFile": False,
+                "LoadFilePath": "",
                 "Chord": 1.0,
                 "Resolution": 200
             },
