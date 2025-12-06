@@ -342,7 +342,7 @@ class NACA4(Airfoil):
             -self.alpha,
         )
 
-    def to_stl(self, output_path: Path) -> None:
+    def to_stl(self, output_path: Path, thickness: float = 0.002, dimension: int = 2) -> None:
         """
         Export airfoil geometry to an extruded STL contour (semi-3D) format. This form
         is compatible with OpenFOAM meshing utilities which do not support fully 
@@ -357,7 +357,10 @@ class NACA4(Airfoil):
         if not (x_contour[0] == x_contour[-1] and y_contour[0] == y_contour[-1]):
             x_contour = np.append(x_contour, x_contour[0])
             y_contour = np.append(y_contour, y_contour[0])
-        ut.export_airfoil_to_stl_ascii(x_contour, y_contour, output_path)
+        if dimension == 3:
+            ut.export_airfoil_to_stl_3d(x_contour, y_contour, output_path, thickness)
+        if dimension == 2:
+            ut.export_airfoil_to_stl_2d(x_contour, y_contour, output_path)
 
     def airfoil_details(self):
         """
@@ -430,7 +433,7 @@ class NACA5(Airfoil):
 
     def _mean_camber_line(
             self,
-            x: np.ndarray, 
+            x: np.ndarray,
             cl: float,
             p: float,
             q: int
@@ -742,7 +745,7 @@ class NACA5(Airfoil):
             -self.alpha,
         )
 
-    def to_stl(self, output_path: Path) -> None:
+    def to_stl(self, output_path: Path, thickness: float = 0.002, dimension: int = 3) -> None:
         """
         Export airfoil geometry to an extruded STL contour (semi-3D) format. This form
         is compatible with OpenFOAM meshing utilities which do not support fully 
@@ -757,7 +760,10 @@ class NACA5(Airfoil):
         if not (x_contour[0] == x_contour[-1] and y_contour[0] == y_contour[-1]):
             x_contour = np.append(x_contour, x_contour[0])
             y_contour = np.append(y_contour, y_contour[0])
-        ut.export_airfoil_to_stl_ascii(x_contour, y_contour, output_path)
+        if dimension == 3:
+            ut.export_airfoil_to_stl_3d(x_contour, y_contour, output_path, thickness)
+        if dimension == 2:
+            ut.export_airfoil_to_stl_2d(x_contour, y_contour, output_path)
 
     def airfoil_details(self):
         """
@@ -1086,7 +1092,7 @@ class UIUCAirfoil:
             -self._alpha
         )
 
-    def to_stl(self, output_path) -> None:
+    def to_stl(self, output_path, thickness=0.002, dimension=3) -> None:
         """
         Export airfoil geometry to an extruded STL contour (semi-3D) format. This form
         is compatible with OpenFOAM meshing utilities which do not support fully 
@@ -1104,7 +1110,10 @@ class UIUCAirfoil:
         if not (x_contour[0] == x_contour[-1] and y_contour[0] == y_contour[-1]):
             x_contour = np.append(x_contour, x_contour[0])
             y_contour = np.append(y_contour, y_contour[0])
-        ut.export_airfoil_to_stl_ascii(x_contour, y_contour, output_path)
+        if dimension == 3:
+            ut.export_airfoil_to_stl_3d(x_contour, y_contour, output_path, thickness)
+        if dimension == 2:
+            ut.export_airfoil_to_stl_2d(x_contour, y_contour, output_path)
 
     def airfoil_details(self):
         """

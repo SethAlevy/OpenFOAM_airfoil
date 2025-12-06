@@ -43,35 +43,37 @@ transportModel  {transport_model};\n
 nu              [0 2 -1 0 0 0 0] {nu};"""
 
 
-def turbulence_properties_dict(setup: Settings, output_path: Path) -> None:
+def model_specific_coeffs_str(setup: Settings, model: str) -> str:
     """
-    Fill the turbulenceProperties file for OpenFOAM simulation based on the provided
-    settings.
+    Generate a string for model-specific coefficients for the turbulenceProperties file.
 
     Args:
         setup (Settings): The simulation settings.
-        output_path (Path): The path to save the turbulenceProperties file.
+        model (str): The turbulence model name (e.g., "kOmegaSST", "kEpsilon").
+
+    Returns:
+        str: The formatted string for model-specific coefficients, or empty if none.
     """
     turb = setup.simulation_settings.get("Turbulence", {})
-    simulation_type = turb.get("SimulationType", "RAS")
-    turbulence = turb.get("Turbulence", "on")
-    print_coeffs = turb.get("PrintCoeffs", "on")
-    model = turb.get("Model", "kOmegaSST")
-    content = generate_turbulence_properties_dict(
-        simulation_type=simulation_type,
-        turbulence=turbulence,
-        print_coeffs=print_coeffs,
-        RAS_model=model
-    )
-    with open(output_path, "w") as file:
-        file.write(content)
+    coeffs = turb.get(model, {})
+    if not coeffs:
+        return ""
+    coeffs_block_name = f"{model}Coeffs"
+    coeffs_lines = []
+    for k, v in coeffs.items():
+        coeffs_lines.append(f"        {k}    {v};")
+    coeffs_str = "\n".join(coeffs_lines)
+    return f"\n    {coeffs_block_name}\n    {{\n{coeffs_str}\n    }}"
 
 
 def generate_turbulence_properties_dict(
         simulation_type: str = "RAS",
         turbulence: str = "on",
         print_coeffs: str = "on",
-        RAS_model: str = "kOmegaSST"
+        RAS_model: str = "kOmegaSST",
+        kappa: float = 0.41,
+        E: float = 9.8,
+        model_coeffs: str = ""
 ) -> str:
     """
     Generate turbulenceProperties file content.
@@ -81,7 +83,10 @@ def generate_turbulence_properties_dict(
         turbulence (str): Turbulence setting.
         print_coeffs (str): Print coefficients setting.
         RAS_model (str): The RAS turbulence model.
-        
+        kappa (float): von Kármán constant.
+        E (float): log-law constant.
+        model_coeffs (str): Model-specific coefficients block.
+
     Returns:
         str: The filled turbulenceProperties content.
     """
@@ -98,4 +103,36 @@ simulationType  {simulation_type};\n
     turbulence      {turbulence};
     printCoeffs     {print_coeffs};
     RASModel        {RAS_model};
+    kappa           {kappa};
+    E               {E};{model_coeffs}
 }}"""
+
+
+def turbulence_properties_dict(setup: Settings, output_path: Path) -> None:
+    """
+    Fill the turbulenceProperties file for OpenFOAM simulation based on the provided
+    settings.
+
+    Args:
+        setup (Settings): The simulation settings.
+        output_path (Path): The path to save the turbulenceProperties file.
+    """
+    turb = setup.simulation_settings.get("Turbulence", {})
+    simulation_type = turb.get("SimulationType", "RAS")
+    turbulence = turb.get("Turbulence", "on")
+    print_coeffs = turb.get("PrintCoeffs", "on")
+    model = turb.get("Model", "kOmegaSST")
+    kappa = turb.get("Kappa", 0.41)
+    E = turb.get("E", 9.8)
+    model_coeffs = model_specific_coeffs_str(setup, model)
+    content = generate_turbulence_properties_dict(
+        simulation_type=simulation_type,
+        turbulence=turbulence,
+        print_coeffs=print_coeffs,
+        RAS_model=model,
+        kappa=kappa,
+        E=E,
+        model_coeffs=model_coeffs
+    )
+    with open(output_path, "w") as file:
+        file.write(content)

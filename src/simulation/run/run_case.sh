@@ -1,7 +1,8 @@
 #!/bin/bash
-# run_case.sh
+set -ex
 
-set -e
+export OMPI_ALLOW_RUN_AS_ROOT=1
+export OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1
 
 while [[ $# -gt 0 ]]; do
   key="$1"
@@ -18,33 +19,24 @@ while [[ $# -gt 0 ]]; do
       case_name="$2"
       shift; shift
       ;;
-    --resolution)
-      resolution="$2"
-      shift; shift
-      ;;
     *)
       shift
       ;;
   esac
 done
 
-n_proc=$(jq -r '.Simulation.Decomposition.NumberOfSubdomains' "$setup_file")
+rm -rf "$working_dir/$case_name"
 
-python3 ../preparation/prepare_case.py \ 
+poetry run python3 ../preparation/prepare_case.py \
     --working-dir "$working_dir" \
     --setup-file "$setup_file" \
-    --case-name "$case_name" \
-    --resolution "$resolution"
+    --case-name "$case_name"
 
-cp *.sh $working_dir/$case_name/
+cp *.sh "$working_dir/$case_name/"
 
-cd $working_dir/$case_name 
+cd "$working_dir/$case_name"
 
-./run_meshing.sh "$n_proc"
-
-./run_simulation.sh "$n_proc"
-
-./run_postprocess.sh
-
-
-
+# Pass the setup_file path directly
+bash ./run_meshing.sh "$setup_file"
+bash ./run_simulation.sh "$setup_file"
+# bash ./run_postprocess.sh

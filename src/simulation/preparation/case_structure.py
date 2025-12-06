@@ -1,12 +1,13 @@
 from pathlib import Path
-from simulation.openfoam.mesh import block_mesh_dict, snappy_hex_mesh_dict
+from simulation.openfoam.mesh import block_mesh_dict, snappy_hex_mesh_dict, cf_mesh_dicts
 from simulation.openfoam.system_dir import control_dict, fv_solution_dict, \
-    fv_schemes_dict, surface_feature_extract_dict
+    fv_schemes_dict, surface_features_dict, decompose_par_dict
 from simulation.openfoam.constant_dir import transport_properties_dict, \
     turbulence_properties_dict
 from simulation.openfoam.boundary_condition import BoundaryConditions
 from templates.airfoil_template import Airfoil
 from templates.initial_settings_template import Settings
+from utils.logger import SimpleLogger
 
 
 def prepare_openfoam_case(
@@ -27,12 +28,19 @@ def prepare_openfoam_case(
     create_directory_structure(working_path, case_name)
 
     mesher = setup.mesh_settings.get("Mesher")
+
+    if mesher and mesher.lower() in ["snappyhexmesh"]:
+        airfoil.to_stl(working_path / case_name / "constant" / "triSurface" / "airfoil.stl", 2)
+    elif mesher and mesher.lower() in ["cfmesh"]:
+        z_min = setup.mesh_settings.get("cfMesh", {}).get("ZMin", -0.001)
+        z_max = setup.mesh_settings.get("cfMesh", {}).get("ZMax", 0.001)
+        thickness = z_max - z_min
+        airfoil.to_stl(working_path / case_name / "constant" / "triSurface" / "airfoil.stl", thickness, 3)
+
     create_meshing_files(working_path / case_name, airfoil, setup, mesher)
     create_system_files(working_path / case_name, setup)
     create_constant_files(working_path / case_name, setup)
     create_boundary_conditions_files(working_path / case_name / "0", setup)
-
-    airfoil.to_stl(working_path / case_name / "constant" / "triSurface" / "airfoil.stl")
 
 
 def create_directory_structure(working_path: Path, case_name: str) -> None:
@@ -70,8 +78,14 @@ def create_meshing_files(
 
     block_mesh_dict(airfoil, setup, (case_path / "system"))
 
-    if mesher == "snappyHexMesh":
+    if mesher and mesher.lower() == "snappyhexmesh":
+        SimpleLogger.log("SnappyHexMesh selected as mesher. Creating file.")
         snappy_hex_mesh_dict(airfoil, setup, (case_path / "system"))
+    elif mesher and mesher.lower() == "cfmesh":
+        SimpleLogger.log("cfMesh selected as mesher. No additional files needed.")
+        cf_mesh_dicts(airfoil, setup, (case_path / "system"))
+    else:
+        SimpleLogger.log("No specific mesher selected or unrecognized mesher.")
 
 
 def create_system_files(case_path: Path, setup: Settings) -> None:
@@ -86,6 +100,15 @@ def create_system_files(case_path: Path, setup: Settings) -> None:
     fv_solution_dict(setup, (case_path / "system" / "fvSolution"))
     fv_schemes_dict(setup, (case_path / "system" / "fvSchemes"))
 
+    n_processors = (
+        setup.simulation_settings
+        .get("Decomposition", {})
+        .get("NumberOfSubdomains", 0)
+    )
+
+    if n_processors and n_processors > 1:
+        decompose_par_dict(setup, (case_path / "system" / "decomposeParDict"))
+
     feature_refinement = (
         setup.mesh_settings
         .get("SnappyHexMesh", {})
@@ -93,9 +116,9 @@ def create_system_files(case_path: Path, setup: Settings) -> None:
         .get("FeatureRefinementLevel", 0)
     )
     if feature_refinement and feature_refinement > 0:
-        surface_feature_extract_dict(
+        surface_features_dict(
             setup,
-            (case_path / "system" / "surfaceFeatureExtractDict")
+            (case_path / "system" / "surfaceFeaturesDict")
         )
 
 
@@ -125,3 +148,7 @@ def create_boundary_conditions_files(case_path: Path, setup: Settings) -> None:
 
     bc.write_bc(velocity_content, case_path / "U")
     bc.write_bc(pressure_content, case_path / "p")
+
+    turbulence_content = bc.turbulence_bc()
+    for filename, content in turbulence_content.items():
+        bc.write_bc(content, case_path / filename)

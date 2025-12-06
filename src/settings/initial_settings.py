@@ -122,7 +122,10 @@ class InitialSettingsReader():
                         "OutletDistance": 0.0,
                         "TopDistance": 0.0,
                         "BottomDistance": 0.0,
-                        "BaseCellSize": 0.0
+                        "BaseCellSize": 0.0,
+                        "ZMin": 0.0,
+                        "ZMax": 0.0,
+                        "Nz": 1
                     }
                 },
                 "SnappyHexMesh": {
@@ -149,7 +152,9 @@ class InitialSettingsReader():
                         "MinSurfaceRefinementLevel": 0,
                         "MaxSurfaceRefinementLevel": 0,
                         "FeatureRefinementLevel": 0,
-                        "ResolveFeatureAngle": 0
+                        "ResolveFeatureAngle": 0,
+                        "MakeBaffle": False,
+                        "AllowFreeStandingZoneFaces": False
                     },
                     "AddLayersControls": {
                         "AddLayers": False,
@@ -169,6 +174,17 @@ class InitialSettingsReader():
                         "NBufferCellsNoExtrude": 0,
                         "NLayerIter": 0
                     }
+                },
+                "CfMesh": {
+                    "BaseCellSize": 0.0,
+                    "DomainMin": 0.0,
+                    "DomainMax": 0.0,
+                    "AirfoilRefinementMinLevel": 0,
+                    "AirfoilRefinementMaxLevel": 0,
+                    "ResolveFeatureAngle": 0,
+                    "CurvatureRefinementLevel": 0,
+                    "ExtrudeThickness": 0.0,
+                    "ExtrudeLayers": 0
                 }
             },
             "Simulation": {
@@ -199,7 +215,11 @@ class InitialSettingsReader():
                 },
                 "FvSchemes": {
                     "DivSchemes": {
-                        "Default": ""
+                        "Default": "",
+                        "DivPhiU": "",
+                        "DivPhiK": "",
+                        "DivPhiEpsilon": "",
+                        "DivPhiOmega": ""
                     },
                     "LaplacianSchemes": {
                         "Default": ""
@@ -212,15 +232,29 @@ class InitialSettingsReader():
                     "Method": "",
                     "NumberOfSubdomains": 0
                 },
-                "SurfaceFeatureExtract": {
+                "SurfaceFeature": {
                     "IncludedAngle": 0
                 },
                 "TurbulenceProperties": {
                     "Turbulence": "",
                     "Model": "",
+                    "Kappa": 0.0,
+                    "E": 0.0,
+                    "TurbulenceIntensity": 0.0,
+                    "TurbulenceLengthScale": 0.0,
                     "kOmegaSST": {
-                        "Kappa": 0.0,
-                        "E": 0.0
+                        "betaStar": 0.0,
+                        "a1": 0.0,
+                        "c1": 0.0,
+                        "c2": 0.0,
+                        "alphaK1": 0.0,
+                        "alphaK2": 0.0,
+                        "alphaOmega1": 0.0,
+                        "alphaOmega2": 0.0,
+                        "beta1": 0.0,
+                        "beta2": 0.0,
+                        "gamma1": 0.0,
+                        "gamma2": 0.0
                     },
                     "kEpsilon": {
                         "Cmu": 0.0,
@@ -239,7 +273,14 @@ class InitialSettingsReader():
                     "Velocity": 0.0,
                     "Pressure": 0.0,
                     "MachNumber": 0.0,
-                    "ReynoldsNumber": 0.0
+                    "ReynoldsNumber": 0.0,
+                    "InletPatchName": "",
+                    "OutletPatchName": "",
+                    "LowerWallPatchName": "",
+                    "UpperWallPatchName": "",
+                    "FrontPatchName": "",
+                    "BackPatchName": "",
+                    "AirfoilPatchName": ""
                 }
             }
         }

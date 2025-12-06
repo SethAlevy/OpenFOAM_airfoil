@@ -38,14 +38,6 @@ def parse_arguments():
         help='Name of the case directory to be created within the working directory.'
     )
 
-    parser.add_argument(
-        "--resolution",
-        type=int,
-        required=False,
-        default=200,
-        help="Number of points to define the airfoil geometry."
-    )
-
     return parser.parse_args()
 
 
@@ -53,27 +45,26 @@ def prepare_case():
     args = parse_arguments()
     working_dir = args.working_dir
     setup_file = args.setup_file
-    resolution = args.resolution
 
     setup = InitialSettingsReader(setup_file)
 
-    airfoil_settings = setup.airfoil_settings()
+    airfoil_settings = setup.airfoil_settings
 
     designation = airfoil_settings.get("Designation")
-    chord = airfoil_settings.get("Chord")
+
     case_name = args.case_name if args.case_name is not None else f"case_{designation}"
 
     if bool(airfoil_settings.get("GenerateNACA")):
-        naca, digits = ut.extract_naca_from_designation(designation)
+        naca, digits = ut.split_naca_designation(designation)
         if not naca:
             raise ValueError(
                 f"Invalid NACA designation '{designation}' for airfoil generation."
             )
         
         if len(digits) == 4:
-            airfoil = af.NACA4(int(digits), setup, resolution, chord)
+            airfoil = af.NACA4(designation=digits, setup=setup)
         elif len(digits) == 5:
-            airfoil = af.NACA5(int(digits), setup, resolution, chord)
+            airfoil = af.NACA5(designation=digits, setup=setup)
         else:
             raise ValueError(
                 "Unsupported number of digits. Only NACA 4 and 5 digit airfoils"
@@ -83,12 +74,7 @@ def prepare_case():
         SimpleLogger.log(f"Generated airfoil: {airfoil}")
     
     elif bool(airfoil_settings.get("DownloadUIUC")):
-        airfoil = af.UIUCAirfoil(
-            designation,
-            setup,
-            resolution,
-            chord
-        )
+        airfoil = af.UIUCAirfoil(designation=designation, setup=setup)
 
         SimpleLogger.log(f"Downloaded airfoil: {airfoil}")
 
@@ -104,11 +90,10 @@ def prepare_case():
 
     SimpleLogger.log(f"Preparing case '{case_name}' in '{working_dir}'")
     prepare_openfoam_case(
-        working_dir,
-        case_name,
-        airfoil,
-        setup.mesh_settings,
-        setup.simulation_settings
+        working_path=working_dir,
+        case_name=case_name,
+        airfoil=airfoil,
+        setup=setup
     )
 
 

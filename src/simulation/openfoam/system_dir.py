@@ -121,7 +121,7 @@ runTimeModifiable {run_time_modifiable};
 def fv_solution_dict(setup: Settings, output_path: Path) -> None:
     """
     Fill the fvSolution file for OpenFOAM simulation based on the provided settings.
-    
+
     Args:
         setup (Settings): The simulation settings.
         output_path (Path): The path to save the fvSolution file.
@@ -199,7 +199,7 @@ def generate_fv_solution_dict(
     """
     Generate fvSolution file content suitable for an airfoil simulation with essential
     parameters.
-    
+
     Args:
         p_solver (str): Solver for pressure.
         p_preconditioner (str): Preconditioner for pressure solver.
@@ -289,7 +289,7 @@ cache
 def fv_schemes_dict(setup: Settings, output_path: Path) -> None:
     """
     Fill the fvSchemes file for OpenFOAM simulation based on the provided settings.
-    
+
     Args:
         setup (Settings): The simulation settings.
         output_path (Path): The path to save the fvSchemes file.
@@ -299,10 +299,15 @@ def fv_schemes_dict(setup: Settings, output_path: Path) -> None:
     grad_scheme = fv_schemes_setup.get("GradScheme", "Gauss linear")
     div_scheme_U = fv_schemes_setup.get("DivScheme_U", "Gauss upwind")
     div_scheme_phi_k = fv_schemes_setup.get("DivScheme_phi_k", "Gauss upwind")
-    div_scheme_phi_epsilon = fv_schemes_setup.get("DivScheme_phi_epsilon", "Gauss upwind")
+    div_scheme_phi_epsilon = fv_schemes_setup.get(
+        "DivScheme_phi_epsilon", "Gauss upwind")
+    div_scheme_phi_omega = fv_schemes_setup.get("DivScheme_phi_omega", "Gauss upwind")
+    div_scheme_phi_nuTilda = fv_schemes_setup.get(
+        "DivScheme_phi_nuTilda", "Gauss upwind")
     laplacian_scheme = fv_schemes_setup.get("LaplacianScheme", "Gauss linear corrected")
     interpolation_scheme = fv_schemes_setup.get("InterpolationScheme", "linear")
     sn_grad_scheme = fv_schemes_setup.get("SnGradScheme", "corrected")
+    wall_dist_scheme = fv_schemes_setup.get("WallDistScheme", "meshWave")
 
     content = generate_fv_schemes_dict(
         time_scheme=time_scheme,
@@ -310,23 +315,29 @@ def fv_schemes_dict(setup: Settings, output_path: Path) -> None:
         div_scheme_U=div_scheme_U,
         div_scheme_phi_k=div_scheme_phi_k,
         div_scheme_phi_epsilon=div_scheme_phi_epsilon,
+        div_scheme_phi_omega=div_scheme_phi_omega,
+        div_scheme_phi_nuTilda=div_scheme_phi_nuTilda,
         laplacian_scheme=laplacian_scheme,
         interpolation_scheme=interpolation_scheme,
-        sn_grad_scheme=sn_grad_scheme
+        sn_grad_scheme=sn_grad_scheme,
+        wall_dist_scheme=wall_dist_scheme
     )
     with open(output_path, "w") as file:
         file.write(content)
 
 
 def generate_fv_schemes_dict(
-        time_scheme: str = "steadyState",
-        grad_scheme: str = "Gauss linear",
-        div_scheme_U: str = "Gauss upwind",
-        div_scheme_phi_k: str = "Gauss upwind",
-        div_scheme_phi_epsilon: str = "Gauss upwind",
-        laplacian_scheme: str = "Gauss linear corrected",
-        interpolation_scheme: str = "linear",
-        sn_grad_scheme: str = "corrected"
+    time_scheme: str = "steadyState",
+    grad_scheme: str = "Gauss linear",
+    div_scheme_U: str = "Gauss upwind",
+    div_scheme_phi_k: str = "Gauss upwind",
+    div_scheme_phi_epsilon: str = "Gauss upwind",
+    div_scheme_phi_omega: str = "Gauss upwind",
+    div_scheme_phi_nuTilda: str = "Gauss upwind",
+    laplacian_scheme: str = "Gauss linear corrected",
+    interpolation_scheme: str = "linear",
+    sn_grad_scheme: str = "corrected",
+    wall_dist_scheme: str = "meshWave"
 ) -> str:
     """
     Generate fvSchemes file content with essential parameters.
@@ -337,9 +348,12 @@ def generate_fv_schemes_dict(
         div_scheme_U (str): Divergence scheme for velocity.
         div_scheme_phi_k (str): Divergence scheme for turbulent kinetic energy.
         div_scheme_phi_epsilon (str): Divergence scheme for dissipation rate.
+        div_scheme_phi_omega (str): Divergence scheme for specific dissipation rate.
+        div_scheme_phi_nuTilda (str): Divergence scheme for turbulent viscosity.
         laplacian_scheme (str): Laplacian scheme.
         interpolation_scheme (str): Interpolation scheme.
         sn_grad_scheme (str): SnGrad scheme.
+        wall_dist_scheme (str): Wall distance calculation method.
 
     Returns:
         str: The filled fvSchemes content.
@@ -364,9 +378,13 @@ gradSchemes
 
 divSchemes
 {{
+    default         none;
     div(phi,U)      {div_scheme_U};
     div(phi,k)      {div_scheme_phi_k};
     div(phi,epsilon) {div_scheme_phi_epsilon};
+    div(phi,omega)   {div_scheme_phi_omega};
+    div(phi,nuTilda) {div_scheme_phi_nuTilda};
+    div((nuEff*dev2(T(grad(U))))) Gauss linear;
 }}
 
 laplacianSchemes
@@ -382,6 +400,11 @@ interpolationSchemes
 snGradSchemes
 {{
     default         {sn_grad_scheme};
+}}
+
+wallDist
+{{
+    method          {wall_dist_scheme};
 }}
 """
     return content
@@ -441,23 +464,21 @@ roots           ();
 """
 
 
-def surface_feature_extract_dict(setup: Settings, output_path: Path) -> None:
+def surface_features_dict(setup: Settings, output_path: Path) -> None:
     """
-    Fill the surfaceFeatureExtractDict file for OpenFOAM simulation based on the provided
+    Fill the surfaceFeaturesDict file for OpenFOAM simulation based on the provided settings.
 
     Args:
         setup (Settings): The simulation settings.
-        output_path (Path): The path to save the surfaceFeatureExtractDict file.
+        output_path (Path): The path to save the surfaceFeaturesDict file.
     """
-    sfe_settings = setup.simulation_settings.get("SurfaceFeatureExtract", {})
+    sfe_settings = setup.simulation_settings.get("SurfaceFeatures", {})
     stl_file = sfe_settings.get("StlFile", "airfoil.stl")
-    extraction_method = sfe_settings.get("ExtractionMethod", "extractFromSurface")
     included_angle = sfe_settings.get("IncludedAngle", 150)
     write_obj = sfe_settings.get("WriteObj", "yes")
 
-    content = generate_surface_feature_extract_dict(
+    content = generate_surface_features_dict(
         stl_file=stl_file,
-        extraction_method=extraction_method,
         included_angle=included_angle,
         write_obj=write_obj
     )
@@ -465,39 +486,50 @@ def surface_feature_extract_dict(setup: Settings, output_path: Path) -> None:
         file.write(content)
 
 
-def generate_surface_feature_extract_dict(
+def generate_surface_features_dict(
         stl_file: str = "airfoil.stl",
-        extraction_method: str = "extractFromSurface",
         included_angle: int = 150,
         write_obj: str = "yes"
 ) -> str:
     """
-    Generate surfaceFeatureExtractDict file content.
-    
+    Generate surfaceFeaturesDict file content (OpenFOAM v10+ style).
+
     Args:
         stl_file (str): The STL file name.
-        extraction_method (str): The extraction method.
         included_angle (int): The included angle.
         write_obj (str): Whether to write OBJ file.
 
     Returns:
-        str: The filled surfaceFeatureExtractDict content.
+        str: The filled surfaceFeaturesDict content.
     """
     return f"""FoamFile
 {{
     version     2.0;
     format      ascii;
     class       dictionary;
-    object      surfaceFeatureExtractDict;
+    object      surfaceFeaturesDict;
 }}
 
-{stl_file}
+geometry
 {{
-    extractionMethod    {extraction_method};
-    extractFromSurfaceCoeffs
+    surfaces
+    (
+        "{stl_file}"
+    );
+    includedAngle   {included_angle};
+}}
+
+extractFeatures
+{{
+    surfaces
+    (
+        "{stl_file}"
+    );
+    includedAngle   {included_angle};
+    "{stl_file}"
     {{
-        includedAngle   {included_angle};
+        extractionMethod    extractFromSurface;
+        writeObj {write_obj};
     }}
-    writeObj            {write_obj};
 }}
 """

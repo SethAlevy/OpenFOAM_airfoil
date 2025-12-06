@@ -1057,6 +1057,26 @@ files = [
 ]
 
 [[package]]
+name = "numpy-stl"
+version = "3.2.0"
+description = "Library to make reading, writing and modifying both binary and ascii STL files easy."
+optional = false
+python-versions = ">3.9.0"
+groups = ["main"]
+files = [
+    {file = "numpy_stl-3.2.0-py3-none-any.whl", hash = "sha256:697c81b107231362460aaedf4647e81ba54f54f59c896772fea7904c9c439da5"},
+    {file = "numpy_stl-3.2.0.tar.gz", hash = "sha256:5a20c3f79cddaa0abc6a4b99f5486aceed4f88152f29b19a57acc844e183fd4d"},
+]
+
+[package.dependencies]
+numpy = "*"
+python-utils = ">=3.4.5"
+
+[package.extras]
+docs = ["mock", "python-utils", "sphinx"]
+tests = ["Sphinx", "cov-core", "coverage", "cython", "docutils", "execnet", "flake8", "numpy", "pep8", "py", "pyflakes", "pytest", "pytest-cache", "pytest-cov", "python-utils", "wheel"]
+
+[[package]]
 name = "packaging"
 version = "25.0"
 description = "Core utilities for Python packages"
@@ -1385,6 +1405,26 @@ files = [
 six = ">=1.5"
 
 [[package]]
+name = "python-utils"
+version = "3.9.1"
+description = "Python Utils is a module with some convenient utilities not included with the standard Python install"
+optional = false
+python-versions = ">=3.9.0"
+groups = ["main"]
+files = [
+    {file = "python_utils-3.9.1-py2.py3-none-any.whl", hash = "sha256:0273d7363c7ad4b70999b2791d5ba6b55333d6f7a4e4c8b6b39fb82b5fab4613"},
+    {file = "python_utils-3.9.1.tar.gz", hash = "sha256:eb574b4292415eb230f094cbf50ab5ef36e3579b8f09e9f2ba74af70891449a0"},
+]
+
+[package.dependencies]
+typing_extensions = ">3.10.0.2"
+
+[package.extras]
+docs = ["mock", "python-utils", "sphinx"]
+loguru = ["loguru"]
+tests = ["blessings", "loguru", "loguru-mypy", "mypy-ipython", "pyright", "pytest", "pytest-asyncio", "pytest-cov", "pytest-mypy", "ruff", "sphinx", "types-setuptools"]
+
+[[package]]
 name = "pyzmq"
 version = "27.1.0"
 description = "Python bindings for 0MQ"
@@ -1666,12 +1706,12 @@ version = "4.15.0"
 description = "Backported and Experimental Type Hints for Python 3.9+"
 optional = false
 python-versions = ">=3.9"
-groups = ["dev"]
-markers = "python_version == \"3.11\""
+groups = ["main", "dev"]
 files = [
     {file = "typing_extensions-4.15.0-py3-none-any.whl", hash = "sha256:f0fa19c6845758ab08074a0cfa8b7aecb71c999ca73d62883bc25cc018c4e548"},
     {file = "typing_extensions-4.15.0.tar.gz", hash = "sha256:0cea48d173cc12fa28ecabc3b837ea3cf6f38c6d1136f85cbaaf598984861466"},
 ]
+markers = {dev = "python_version == \"3.11\""}
 
 [[package]]
 name = "urllib3"
@@ -1706,4 +1746,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11"
-content-hash = "213f51eba8597d49bc09e24cb10dd43a274ca4dddf9f328205586d6f42a22b1a"
+content-hash = "4b97e13b574ab1b8f372b9cf3f5c702060301128a1f0874435e522aa51d1492b"

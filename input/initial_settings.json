@@ -9,22 +9,27 @@
         "Resolution": 200
     },
     "Mesh": {
-        "Mesher": "SnappyHexMesh",
+        "Mesher": "cfMesh",
+
         "BlockMesh": {
             "BoundingBox": {
                 "InletDistance": 5.0,
                 "OutletDistance": 10.0,
                 "TopDistance": 5.0,
                 "BottomDistance": 5.0,
-                "BaseCellSize": 0.1
+                "BaseCellSize": 0.1,
+                "ZMin": -0.001,
+                "ZMax": 0.001,
+                "Nz": 1
             }
         },
+
         "SnappyHexMesh": {
             "Geometry": {
-                "RefinementBoxLevel": 3,
-                "SphereTipLevel": 4,
+                "RefinementBoxLevel": 0,
+                "SphereTipLevel": 0,
                 "SphereTipRadius": 0.1,
-                "SphereLeadingEdgeLevel": 4,
+                "SphereLeadingEdgeLevel": 0,
                 "SphereLeadingEdgeRadius": 0.1
             },
             "SnapControls": {
@@ -40,14 +45,17 @@
                 "MinRefinementCells": 10,
                 "MaxLoadUnbalance": 0.10,
                 "NCellsBetweenLevels": 3,
-                "MinSurfaceRefinementLevel": 2,
-                "MaxSurfaceRefinementLevel": 4,
-                "FeatureRefinementLevel": 4,
-                "ResolveFeatureAngle": 30
+                "MinSurfaceRefinementLevel": 6,
+                "MaxSurfaceRefinementLevel": 7,
+                "FeatureRefinementLevel": 3,
+                "ResolveFeatureAngle": 30,
+                "MakeBaffle": false,
+                "AirfoilPatchType": "wall",
+                "AllowFreeStandingZoneFaces": true
             },
             "AddLayersControls": {
-                "AddLayers": true,
-                "NSurfaceLayers": 3,
+                "AddLayers": false,
+                "NSurfaceLayers": 0,
                 "ExpansionRatio": 1.0,
                 "FinalLayerThickness": 0.3,
                 "MinThickness": 0.1,
@@ -63,15 +71,28 @@
                 "NBufferCellsNoExtrude": 0,
                 "NLayerIter": 50
             }
+        },
+
+        "cfMesh": {
+            "BaseCellSize": 0.01,
+            "DomainMin": [-1.0, -0.5, 0.0],
+            "DomainMax": [2.0, 0.5, 0.0],
+            "AirfoilRefinementMinLevel": 6,
+            "AirfoilRefinementMaxLevel": 7,
+            "ResolveFeatureAngle": 150,
+            "CurvatureRefinementLevel": 0,
+            "ExtrudeThickness": 0.002,
+            "ExtrudeLayers": 1
         }
     },
+
     "Simulation": {
         "CaseName": "airfoilCase",
         "ControlDict": {
-            "Solver": "simpleFoam",
+            "Solver": "incompressibleFluid",
             "StartFrom": "startTime",
             "StartTime": 0,
-            "EndTime": 1000,
+            "EndTime": 100,
             "DeltaT": 1,
             "WriteControl": "timeStep",
             "WriteInterval": 100,
@@ -93,13 +114,23 @@
         },
         "FvSchemes": {
             "DivSchemes": {
-                "Default": "Gauss upwind"
+                "Default": "Gauss upwind",
+                "DivPhiU": "Gauss upwind",
+                "DivPhiK": "Gauss upwind",
+                "DivPhiEpsilon": "Gauss upwind",
+                "DivPhiOmega": "Gauss upwind"
             },
             "LaplacianSchemes": {
                 "Default": "Gauss linear corrected"
             },
             "InterpolationSchemes": {
                 "Default": "linear"
+            },
+            "SnGradSchemes": {
+                "Default": "corrected"
+            },
+            "DistanceSchemes": {
+                "WallDist": "meshWave"
             }
         },
         "Decomposition": {
@@ -112,9 +143,21 @@
         "TurbulenceProperties": {
             "Turbulence": "on",
             "Model": "kOmegaSST",
+            "Kappa": 0.41,
+            "E": 9.8,
+            "TurbulenceIntensity": 0.01,
+            "TurbulenceLengthScale": 0.08,
             "kOmegaSST": {
-                "Kappa": 0.41,
-                "E": 9.8
+                "betaStar": 0.09,
+                "a1": 0.31,
+                "c1": 10.0,
+                "c2": 1.0,
+                "alphaK1": 0.85,
+                "alphaK2": 1.0,
+                "alphaOmega1": 0.5,
+                "alphaOmega2": 0.856,
+                "beta1": 0.075,
+                "beta2": 0.0828
             },
             "kEpsilon": {
                 "Cmu": 0.09,
@@ -133,7 +176,14 @@
             "Velocity": 150.0,
             "Pressure": 0.0,
             "MachNumber": 0.5,
-            "ReynoldsNumber": 500000
+            "ReynoldsNumber": 500000,
+            "InletPatchName": "inlet",
+            "OutletPatchName": "outlet",
+            "LowerWallPatchName": "lowerWall",
+            "UpperWallPatchName": "upperWall",
+            "FrontPatchName": "front",
+            "BackPatchName": "back",
+            "AirfoilPatchName": "airfoil"
         }
     }
-} 
+}

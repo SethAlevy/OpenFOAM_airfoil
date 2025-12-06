@@ -1,6 +1,12 @@
 from templates.airfoil_template import Airfoil
 from templates.initial_settings_template import Settings
 from pathlib import Path
+import numpy as np
+import subprocess
+from stl import mesh as np_mesh, Mode  # Import Mode from the top-level stl module
+from utils.utilities import create_stl_bounding_box
+from utils.utilities import export_airfoil_to_stl_3d
+from utils.utilities import export_domain_to_fms
 
 
 def block_mesh_dict(airfoil: Airfoil, setup: Settings, output_path: Path) -> None:
@@ -13,7 +19,7 @@ def block_mesh_dict(airfoil: Airfoil, setup: Settings, output_path: Path) -> Non
         setup (Settings): Object with the simulation settings.
         output_path (Path): Path where the blockMeshDict file will be saved.
     """
-    bounding_box = setup.mesh_settings.get("BlockMesh", {}).get("BoundingBox", {})
+    bounding_box = setup.mesh_settings.get("BoundingBox", {})
     x_min, x_max, y_min, y_max = get_bounding_box(airfoil, bounding_box)
     cell_size = bounding_box["BaseCellSize"]
 
@@ -22,7 +28,8 @@ def block_mesh_dict(airfoil: Airfoil, setup: Settings, output_path: Path) -> Non
     outlet_patch = boundary_conditions.get("OutletPatchName", "outlet")
     lower_wall_patch = boundary_conditions.get("LowerWallPatchName", "lowerWall")
     upper_wall_patch = boundary_conditions.get("UpperWallPatchName", "upperWall")
-    front_back_patch = boundary_conditions.get("FrontBackPatchName", "frontAndBack")
+    front_patch = boundary_conditions.get("FrontPatchName", "front")
+    back_patch = boundary_conditions.get("BackPatchName", "back")
 
     content = generate_block_mesh_dict(
         x_min=x_min,
@@ -35,7 +42,8 @@ def block_mesh_dict(airfoil: Airfoil, setup: Settings, output_path: Path) -> Non
         outlet_patch=outlet_patch,
         lower_wall_patch=lower_wall_patch,
         upper_wall_patch=upper_wall_patch,
-        front_back_patch=front_back_patch
+        front_patch=front_patch,
+        back_patch=back_patch
     )
 
     output_path.mkdir(parents=True, exist_ok=True)
@@ -56,7 +64,7 @@ def get_bounding_box(
         bounding_box (dict): Dictionary with the bounding box distances.
 
     Returns:
-        tuple[float, float, float, float]: x_min, x_max, y_min, y_max of the 
+        tuple[float, float, float, float]: x_min, x_max, y_min, y_max of the
             bounding box.
     """
     chord = airfoil.chord
@@ -76,14 +84,15 @@ def generate_block_mesh_dict(
     y_max: float,
     nx: int,
     ny: int,
-    z_min: float = 0,
-    z_max: float = 0.01,
+    z_min: float = -0.0015,
+    z_max: float = 0.0015,
     nz: int = 1,
     inlet_patch: str = "inlet",
     outlet_patch: str = "outlet",
     lower_wall_patch: str = "lowerWall",
     upper_wall_patch: str = "upperWall",
-    front_back_patch: str = "frontAndBack"
+    front_patch: str = "front",
+    back_patch: str = "back"
 ) -> str:
     """
     Generate a simple BlockMesh dict for a 2D airfoil case with customizable patch
@@ -103,7 +112,8 @@ def generate_block_mesh_dict(
         outlet_patch (str): Name of the outlet patch.
         lower_wall_patch (str): Name of the lower wall patch.
         upper_wall_patch (str): Name of the upper wall patch.
-        front_back_patch (str): Name of the front and back patches.
+        front_patch (str): Name of the front patch.
+        back_patch (str): Name of the back patch.
 
     Returns:
         str: The content of the blockMeshDict file.
@@ -159,7 +169,7 @@ boundary
     }}
     {lower_wall_patch}
     {{
-        type wall;
+        type patch;
         faces
         (
             (0 1 5 4)
@@ -167,18 +177,25 @@ boundary
     }}
     {upper_wall_patch}
     {{
-        type wall;
+        type patch;
         faces
         (
             (3 7 6 2)
         );
     }}
-    {front_back_patch}
+    {front_patch}
     {{
-        type empty;
+        type symmetryPlane;
         faces
         (
             (0 3 2 1)
+        );
+    }}
+    {back_patch}
+    {{
+        type symmetryPlane;
+        faces
+        (
             (4 5 6 7)
         );
     }}
@@ -205,16 +222,15 @@ def snappy_hex_mesh_dict(airfoil: Airfoil, setup: Settings, output_path: Path) -
 
     # Geometry refinement regions
     refinement_box_level = snappy_hex_mesh_settings.get(
-        "CastellatedMeshControls", {}).get("RefinementBoxLevel", 0)
+        "Geometry", {}).get("RefinementBoxLevel", 0)
     sphere_tip_level = snappy_hex_mesh_settings.get(
-        "CastellatedMeshControls", {}).get("SphereTipLevel", 0)
+        "Geometry", {}).get("SphereTipLevel", 0)
     sphere_tip_radius_scale = snappy_hex_mesh_settings.get(
-        "CastellatedMeshControls", {}).get("SphereTipRadius", 0)
+        "Geometry", {}).get("SphereTipRadius", 0)
     sphere_leading_level = snappy_hex_mesh_settings.get(
-        "CastellatedMeshControls", {}).get("SphereLeadingEdgeLevel", 0)
+        "Geometry", {}).get("SphereLeadingEdgeLevel", 0)
     sphere_leading_radius_scale = snappy_hex_mesh_settings.get(
-        "CastellatedMeshControls", {}).get("SphereLeadingEdgeRadius", 0)
-
+        "Geometry", {}).get("SphereLeadingEdgeRadius", 0)
     if refinement_box_level > 0:
         refinement_box = refinement_box_dict(airfoil)
     else:
@@ -236,8 +252,8 @@ def snappy_hex_mesh_dict(airfoil: Airfoil, setup: Settings, output_path: Path) -
 
     # Feature refinement level
     feature_refinement_level = castellated_controls.get("FeatureRefinementLevel", 0)
-
     content = generate_snappy_hex_mesh_dict(
+        airfoil=airfoil,
         refinement_box=refinement_box,
         refinement_box_level=refinement_box_level,
         sphere_tip=sphere_tip,
@@ -257,7 +273,7 @@ def snappy_hex_mesh_dict(airfoil: Airfoil, setup: Settings, output_path: Path) -
 
 def refinement_box_dict(Airfoil: Airfoil) -> dict:
     """
-    Define the refinement box around the airfoil. Size is assumed by taking the 
+    Define the refinement box around the airfoil. Size is assumed by taking the
     airfoils extreme coordinates and adding one chord length distance in each direction.
 
     Args:
@@ -271,8 +287,8 @@ def refinement_box_dict(Airfoil: Airfoil) -> dict:
     lower_surface = Airfoil.lower_surface
 
     return {
-        "min": [min(lower_surface[0]) - chord, min(lower_surface[1]) - chord, -0.1],
-        "max": [max(upper_surface[0]) + chord, max(upper_surface[1]) + chord, 0.1],
+        "min": [min(lower_surface[0]) - chord, min(lower_surface[1]) - chord, -0.01],
+        "max": [max(upper_surface[0]) + chord, max(upper_surface[1]) + chord, 0.01],
     }
 
 
@@ -303,7 +319,26 @@ def refine_sphere_dict(Airfoil: Airfoil, position: str, radius_scale: float) -> 
     }
 
 
+def get_location_in_mesh(airfoil: Airfoil) -> np.ndarray:
+    """
+    Get the location of the airfoil in the mesh for snappyHexMesh refinement from
+    mean camber line.
+
+    Args:
+        airfoil (Airfoil): Object with the generated airfoil geometry.
+
+    Returns:
+        np.ndarray: Array with the x and y coordinates of the airfoil location.
+    """
+
+    x_coords = airfoil.mean_camber_line[0]
+    y_coords = airfoil.mean_camber_line[1]
+    locations = np.column_stack((x_coords, y_coords))
+    return locations[10]
+
+
 def generate_snappy_hex_mesh_dict(
+    airfoil: Airfoil,
     refinement_box: dict = '',
     refinement_box_level: int = 0,
     sphere_tip: dict = '',
@@ -317,12 +352,13 @@ def generate_snappy_hex_mesh_dict(
     mesh_quality_controls: dict = {},
 ):
     """
-    Generate a snappyHexMeshDict for a semi-2D airfoil case, using helper functions 
-    for sections. Allows full control over the meshing process through settings 
+    Generate a snappyHexMeshDict for a semi-2D airfoil case, using helper functions
+    for sections. Allows full control over the meshing process through settings
     file.
 
     Args:
-        refinement_box (dict): Dictionary with the minimum and maximum coordinates of 
+        airfoil (Airfoil): Object with the generated airfoil geometry.
+        refinement_box (dict): Dictionary with the minimum and maximum coordinates of
             the airfoil refinement box.
         refinement_box_level (int): Refinement level for the airfoil refinement box.
         sphere_tip (dict): Dictionary with the center coordinates and radius of the
@@ -337,7 +373,7 @@ def generate_snappy_hex_mesh_dict(
         snap_controls (dict): Dictionary with the snapControls section settings.
         castellated_controls (dict): Dictionary with the castellatedMeshControls
             section settings.
-        mesh_quality_controls (dict): Dictionary with the meshQualityControls section 
+        mesh_quality_controls (dict): Dictionary with the meshQualityControls section
             settings.
 
     Returns:
@@ -362,6 +398,7 @@ def generate_snappy_hex_mesh_dict(
     {tip_sphere_geo}
     {lead_sphere_geo}
 """
+    chord = airfoil.chord
 
     refinement_regions_str = "    refinementRegions\n    {\n"
     refinement_regions_str += ref_box_reg
@@ -370,6 +407,7 @@ def generate_snappy_hex_mesh_dict(
     refinement_regions_str += "    }\n"
 
     castellated_mesh_controls_section = castellated_mesh_controls_str(
+        chord,
         castellated_controls,
         features_str,
         refinement_regions_str
@@ -568,15 +606,17 @@ addLayersControls
 
 
 def castellated_mesh_controls_str(
+    chord: float,
     castellated_controls: dict,
     features_str: str,
-    refinement_regions_str: str
+    refinement_regions_str: str,
 ) -> str:
     """
     Generate the castellatedMeshControls section string for snappyHexMeshDict including
     refinementSurfaces creation with levels from the dict.
 
     Args:
+        chord (float): Chord length of the airfoil.
         castellated_controls (dict): Dictionary with the castellatedMeshControls
             section settings.
         features_str (str): The features section string.
@@ -595,6 +635,7 @@ def castellated_mesh_controls_str(
         }}
     }}
 """
+
     return f"""
 castellatedMeshControls
 {{
@@ -607,7 +648,8 @@ castellatedMeshControls
 {refinement_surfaces_str}
 {refinement_regions_str}
     resolveFeatureAngle {castellated_controls.get('ResolveFeatureAngle', 30)};
-    locationInMesh (0 0 0.005);
+    locationInMesh ({chord * 1.5} 0.0 0.0);
+    allowFreeStandingZoneFaces true;
 }}
 """
 
@@ -620,7 +662,7 @@ def mesh_quality_controls_str(mesh_quality_controls: dict) -> str:
     Args:
         mesh_quality_controls (dict): Dictionary with the meshQualityControls
             section settings.
-    
+
     Returns:
         str: The meshQualityControls section string.
     """
@@ -641,5 +683,124 @@ meshQualityControls
     minTriangleTwist {mesh_quality_controls.get('MinTriangleTwist', -1)};
     nSmoothScale {mesh_quality_controls.get('NSmoothScale', 4)};
     errorReduction {mesh_quality_controls.get('ErrorReduction', 0.75)};
+}}"""
+
+
+def generate_cf_meshDict(
+    thickness: float,
+    location_in_mesh: tuple[float, float],
+    max_cell_size: float,
+    airfoil_ref_level: int,
+    airfoil_ref_distance: float = 0.05
+) -> str:
+    """
+    Generates a meshDict for cartesian2DMesh with airfoil surface refinement.
+
+    Args:
+        thickness: Mesh thickness in z-direction
+        location_in_mesh: Point inside the fluid domain (x, y)
+        max_cell_size: Maximum cell size in the domain
+        airfoil_ref_level: Refinement level at the airfoil surface
+        airfoil_ref_distance: Distance from airfoil surface where refinement is applied
+    """
+    refined_cell_size = max_cell_size / (2 ** airfoil_ref_level)
+
+    return f"""FoamFile
+{{
+    version   2.0;
+    format    ascii;
+    class     dictionary;
+    location  "system";
+    object    meshDict;
+}}
+
+surfaceFile         "constant/triSurface/domain.fms";
+maxCellSize         {max_cell_size};
+locationInMesh      ({location_in_mesh[0]} {location_in_mesh[1]});
+
+// Object-based refinements around the airfoil
+localRefinement
+{{
+    airfoil
+    {{
+        additionalRefinementLevels 4;
+    }}
 }}
 """
+
+
+def cf_mesh_dicts(airfoil: Airfoil, setup: Settings, system_dir: Path) -> None:
+    """
+    Generates a .fms file and a meshDict for the cartesian2DMesh workflow.
+    Also saves individual STL files and a combined domain.stl for visualization.
+    """
+    case_dir = system_dir.parent
+    tri_surface_dir = case_dir / "constant" / "triSurface"
+    tri_surface_dir.mkdir(exist_ok=True, parents=True)
+
+    cf = setup.mesh_settings.get("cfMesh", {})
+
+    # --- 1. Define domain and patch names ---
+    x_min, x_max, y_min, y_max = get_bounding_box(
+        airfoil, setup.mesh_settings.get("BoundingBox", {}))
+    thickness = cf.get("ZMax", 0.005) - cf.get("ZMin", -0.005)
+    z_min = cf.get("ZMin", -0.005)
+    z_max = cf.get("ZMax", 0.005)
+
+    bc = setup.simulation_settings.get("BoundaryConditions", {})
+
+    # This dictionary is for the edge-naming part of the .fms file
+    edge_patch_names = {
+        "inlet": bc.get("InletPatchName", "inlet"),
+        "outlet": bc.get("OutletPatchName", "outlet"),
+        "lowerWall": bc.get("LowerWallPatchName", "lowerWall"),
+        "upperWall": bc.get("UpperWallPatchName", "upperWall"),
+    }
+
+    # --- 2. Create individual STL files for bounding box ---
+    create_stl_bounding_box(
+        x_min, x_max, y_min, y_max, z_min, z_max,
+        edge_patch_names, tri_surface_dir
+    )
+
+    # --- 3. Create combined domain.stl by concatenating all STL files ---
+    # The airfoil.stl should already exist from the main preparation script
+    airfoil_stl_path = tri_surface_dir / "airfoil.stl"
+    if not airfoil_stl_path.exists():
+        raise FileNotFoundError(f"Airfoil STL not found at {airfoil_stl_path}")
+
+    # List of all STL files to combine
+    stl_files_to_combine = [airfoil_stl_path] + \
+        [tri_surface_dir / f"{name}.stl" for name in edge_patch_names.values()]
+
+    # Concatenate all STL files into domain.stl
+    with open(tri_surface_dir / "domain.stl", "wb") as combined_file:
+        for stl_file in stl_files_to_combine:
+            if stl_file.exists():
+                with open(stl_file, "rb") as individual_file:
+                    combined_file.write(individual_file.read())
+
+    # --- 4. Create the 2D domain .fms file ---
+    x_contour = np.concatenate(
+        (airfoil.upper_surface[0], airfoil.lower_surface[0][::-1]))
+    y_contour = np.concatenate(
+        (airfoil.upper_surface[1], airfoil.lower_surface[1][::-1]))
+
+    export_domain_to_fms(
+        x_contour, y_contour,
+        x_min, x_max, y_min, y_max,
+        patch_names=edge_patch_names,
+        output_path=tri_surface_dir / "domain.fms"
+    )
+
+    # --- 5. Generate meshDict for cartesian2DMesh ---
+    location_in_mesh = (x_min + 0.1 * airfoil.chord, 0.0)
+
+    mesh_dict_content = generate_cf_meshDict(
+        thickness=thickness,
+        location_in_mesh=location_in_mesh,
+        max_cell_size=cf.get("MaxCellSize", 0.05),
+        airfoil_ref_level=cf.get('AirfoilRefinementMinLevel', 2)
+    )
+    with open(system_dir / "meshDict", "w") as f:
+        f.write(mesh_dict_content)
