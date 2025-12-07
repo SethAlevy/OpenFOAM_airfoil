@@ -1,5 +1,7 @@
 from pathlib import Path
-from simulation.openfoam.mesh import block_mesh_dict, snappy_hex_mesh_dict, cf_mesh_dicts
+from simulation.openfoam.block_mesh import block_mesh_dict
+from simulation.openfoam.snappy_hex_mesh import snappy_hex_mesh_dict
+from simulation.openfoam.cf_mesh_2d import cf_mesh_dict
 from simulation.openfoam.system_dir import control_dict, fv_solution_dict, \
     fv_schemes_dict, surface_features_dict, decompose_par_dict
 from simulation.openfoam.constant_dir import transport_properties_dict, \
@@ -30,12 +32,18 @@ def prepare_openfoam_case(
     mesher = setup.mesh_settings.get("Mesher")
 
     if mesher and mesher.lower() in ["snappyhexmesh"]:
-        airfoil.to_stl(working_path / case_name / "constant" / "triSurface" / "airfoil.stl", 2)
+        airfoil.to_stl(
+            working_path / case_name / "constant" / "triSurface" / "airfoil.stl", 2
+        )
     elif mesher and mesher.lower() in ["cfmesh"]:
         z_min = setup.mesh_settings.get("cfMesh", {}).get("ZMin", -0.001)
         z_max = setup.mesh_settings.get("cfMesh", {}).get("ZMax", 0.001)
         thickness = z_max - z_min
-        airfoil.to_stl(working_path / case_name / "constant" / "triSurface" / "airfoil.stl", thickness, 3)
+        airfoil.to_stl(
+            working_path / case_name / "constant" / "triSurface" / "airfoil.stl",
+            thickness,
+            3
+        )
 
     create_meshing_files(working_path / case_name, airfoil, setup, mesher)
     create_system_files(working_path / case_name, setup)
@@ -83,7 +91,7 @@ def create_meshing_files(
         snappy_hex_mesh_dict(airfoil, setup, (case_path / "system"))
     elif mesher and mesher.lower() == "cfmesh":
         SimpleLogger.log("cfMesh selected as mesher. No additional files needed.")
-        cf_mesh_dicts(airfoil, setup, (case_path / "system"))
+        cf_mesh_dict(airfoil, setup, (case_path / "system"))
     else:
         SimpleLogger.log("No specific mesher selected or unrecognized mesher.")
 

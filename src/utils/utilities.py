@@ -137,8 +137,13 @@ def export_airfoil_to_stl_3d(
         thickness: float = 1e-3
 ) -> None:
     """
-    (Restored)
-    Creates and saves a 3D extruded airfoil as a numpy-stl ASCII file.
+    Creates and saves a 3D extruded closed airfoil as a numpy-stl ASCII file.
+
+    Args:
+        x (np.ndarray): x-coordinates of the closed airfoil contour.
+        y (np.ndarray): y-coordinates of the closed airfoil contour.
+        output_path (Path): STL file path.
+        thickness (float): Extrusion thickness in meters (default: 1e-3).
     """
     x = np.asarray(x, dtype=float)
     y = np.asarray(y, dtype=float)
@@ -183,9 +188,18 @@ def create_stl_bounding_box(
     patch_names: dict, output_dir: Path
 ) -> None:
     """
-    (Modified)
     Creates and saves 6 STL files representing the faces of a bounding box.
     Each STL is named according to the patch name.
+
+    Args:
+        x_min (float): Minimum x-coordinate of the bounding box.
+        x_max (float): Maximum x-coordinate of the bounding box.
+        y_min (float): Minimum y-coordinate of the bounding box.
+        y_max (float): Maximum y-coordinate of the bounding box.
+        z_min (float): Minimum z-coordinate of the bounding box.
+        z_max (float): Maximum z-coordinate of the bounding box.
+        patch_names (dict): Dictionary mapping patch roles to their names.
+        output_dir (Path): Directory to save the STL files.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -249,16 +263,34 @@ def export_airfoil_to_stl_2d(
 
 
 def export_domain_to_fms(
-    airfoil_x: np.ndarray, airfoil_y: np.ndarray,
-    x_min: float, x_max: float, y_min: float, y_max: float,
-    patch_names: dict, output_path: Path
+    airfoil_x: np.ndarray,
+    airfoil_y: np.ndarray,
+    x_min: float,
+    x_max: float,
+    y_min: float,
+    y_max: float,
+    z_front: float,
+    z_back: float,
+    patch_names: dict,
+    output_path: Path
 ) -> None:
     """
-    (Corrected)
-    Exports a 3D domain to .fms file format with properly separated
-    airfoil and bounding box surfaces.
+    Export the domain around the airfoil as an ASCII FMS file. This type of file
+    allows cfMesh to read the patch names for defined faces.
+
+    Args:
+        airfoil_x (np.ndarray): x-coordinates of the closed airfoil contour.
+        airfoil_y (np.ndarray): y-coordinates of the closed airfoil contour.
+        x_min (float): Minimum x-coordinate of the bounding box.
+        x_max (float): Maximum x-coordinate of the bounding box.
+        y_min (float): Minimum y-coordinate of the bounding box.
+        y_max (float): Maximum y-coordinate of the bounding box.
+        z_front (float): z-coordinate of the front face.
+        z_back (float): z-coordinate of the back face.
+        patch_names (dict): Dictionary mapping patch roles to their names.
+        output_path (Path): Path to save the FMS file.
     """
-    # Create the header section with correct types
+    # Create the header section
     all_patches_with_types = {"airfoil": "wall"}
     all_patches_with_types.update({name: "patch" for name in patch_names.values()})
 
@@ -266,11 +298,6 @@ def export_domain_to_fms(
     patch_to_index = {name: idx for idx,
                       name in enumerate(all_patches_with_types.keys())}
 
-    # Z coordinates for 3D extrusion
-    z_front = 0.01
-    z_back = -0.01
-
-    # Build vertex list
     vertices = []
 
     # Airfoil vertices - front surface (z = z_front)
@@ -300,7 +327,6 @@ def export_domain_to_fms(
         (x_min, y_min, z_back),   # 3: Bottom-left back
     ])
 
-    # Build face list
     faces = []
 
     # 1. Airfoil front cap (fan triangulation from first vertex as centroid)
@@ -350,7 +376,6 @@ def export_domain_to_fms(
     faces.append(((v0, v1, v2), patch_to_index[patch_names['inlet']]))
     faces.append(((v0, v2, v3), patch_to_index[patch_names['inlet']]))
 
-    # Write to file
     with open(output_path, 'w') as f:
         # --- 1. Write Boundary Patch Definitions ---
         f.write(f"{num_patches}\n(\n\n")

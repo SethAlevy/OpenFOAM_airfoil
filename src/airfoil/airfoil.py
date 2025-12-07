@@ -11,41 +11,30 @@ import utils.utilities as ut
 
 class NACA4(Airfoil):
     def __init__(
-            self,
-            designation: str = None,
-            chord_length: float = None,
-            resolution: int = None,
-            setup: Settings = None
+        self,
+        designation: str = None,
+        chord_length: float = None,
+        resolution: int = None,
+        setup: Settings = None
     ):
-        """
-        Class to generate NACA 4-digit airfoil. Provides coordinates for the surface
-        lines, mean camber, thickness distribution, and angle theta along the chord.
-        Is capable to apply angle of attack. The leading edge is always on (0, 0).
-        Also allows fast plotting of the airfoil geometry.
-
-        Passed arguments are prioritized, but if not provided, the class will try to
-        extract them from the Settings object (initial settings json file).
-
-        Args:
-            designation (str): NACA 4-digit designation, e.g., '2412'
-            chord_length (float): Chord length of the airfoil in meters.
-            resolution (int): Number of points to discretize the airfoil surface along.
-            setup (Settings): Settings object to extract initial parameters from.
-        """
-        if designation is None:
-            self.designation = setup.airfoil_settings.get("Designation")
+        if setup:
+            airfoil_config = setup.airfoil_settings
+            setup_designation = airfoil_config.get("Designation", "0012")
+            setup_chord = airfoil_config.get("ChordLength", 1.0)
+            setup_resolution = airfoil_config.get("Resolution", 200)
+            setup_aoa = airfoil_config.get("AngleOfAttack", 0.0)
         else:
-            self.designation = designation
+            setup_designation = "0012"
+            setup_chord = 1.0
+            setup_resolution = 200
+            setup_aoa = 0.0
 
-        if chord_length is None:
-            self.chord_length = setup.airfoil_settings.get("Chord")
-        else:
-            self.chord_length = chord_length
+        # Prioritize passed arguments over setup values
+        self.designation = designation if designation is not None else setup_designation
+        self._chord = chord_length if chord_length is not None else setup_chord
+        self.resolution = resolution if resolution is not None else setup_resolution
+        self.angle_of_attack = setup_aoa
 
-        if resolution is None:
-            self.resolution = setup.airfoil_settings.get("Resolution")
-        else:
-            self.resolution = resolution
         self._alpha = 0.0
 
         self.x = np.linspace(0, 1, self.resolution)
@@ -229,8 +218,8 @@ class NACA4(Airfoil):
         yc = self._mean_camber_line(self.x_alpha_zero, self.m, self.p)
         return ut.rotate_by_alpha(
             -self.alpha,
-            self.x_alpha_zero * self.chord_length,
-            yc * self.chord_length
+            self.x_alpha_zero * self.chord,
+            yc * self.chord
         )
 
     @property
@@ -248,8 +237,8 @@ class NACA4(Airfoil):
         xu, yu = self._upper_surface(self.x_alpha_zero, yc, yt, theta)
         return ut.rotate_by_alpha(
             -self.alpha,
-            xu * self.chord_length,
-            yu * self.chord_length
+            xu * self.chord,
+            yu * self.chord
         )
 
     @property
@@ -267,8 +256,8 @@ class NACA4(Airfoil):
         xl, yl = self._lower_surface(self.x_alpha_zero, yc, yt, theta)
         return ut.rotate_by_alpha(
             -self.alpha,
-            xl * self.chord_length,
-            yl * self.chord_length
+            xl * self.chord,
+            yl * self.chord
         )
 
     @property
@@ -292,8 +281,8 @@ class NACA4(Airfoil):
         """
         thickness = self._thickness(self.x)
         thickness = np.array([
-            self.x * self.chord_length,
-            thickness * self.chord_length
+            self.x * self.chord,
+            thickness * self.chord
         ])
         return ut.rotate_by_alpha(-self.alpha, thickness[0], thickness[1])
 
@@ -305,7 +294,7 @@ class NACA4(Airfoil):
         Returns:
             float: chord length.
         """
-        return self.chord_length
+        return self._chord
 
     @property
     def alpha(self) -> float:
@@ -342,11 +331,20 @@ class NACA4(Airfoil):
             -self.alpha,
         )
 
-    def to_stl(self, output_path: Path, thickness: float = 0.002, dimension: int = 2) -> None:
+    def to_stl(
+            self,
+            output_path: Path,
+            thickness: float = 0.002,
+            dimension: int = 2
+    ) -> None:
         """
-        Export airfoil geometry to an extruded STL contour (semi-3D) format. This form
-        is compatible with OpenFOAM meshing utilities which do not support fully 
-        2D geometries.
+        Export airfoil geometry to STL format. It can be 2D or 3D by selecting the 
+        dimension parameter (in general depends on the mesh requirements).
+
+        Args:
+            output_path (Path): Path to save the STL file.
+            thickness (float): Thickness for 3D extrusion (only used if dimension=3).
+            dimension (int): 2 for 2D STL, 3 for extruded 3D STL.
         """
         xu, yu = self.upper_surface
         xl, yl = self.lower_surface
@@ -354,13 +352,13 @@ class NACA4(Airfoil):
         x_contour = np.concatenate([xu, xl[::-1]])
         y_contour = np.concatenate([yu, yl[::-1]])
         # Ensure the loop is closed
-        if not (x_contour[0] == x_contour[-1] and y_contour[0] == y_contour[-1]):
+        if x_contour[0] != x_contour[-1] or y_contour[0] != y_contour[-1]:
             x_contour = np.append(x_contour, x_contour[0])
             y_contour = np.append(y_contour, y_contour[0])
-        if dimension == 3:
-            ut.export_airfoil_to_stl_3d(x_contour, y_contour, output_path, thickness)
         if dimension == 2:
             ut.export_airfoil_to_stl_2d(x_contour, y_contour, output_path)
+        elif dimension == 3:
+            ut.export_airfoil_to_stl_3d(x_contour, y_contour, output_path, thickness)
 
     def airfoil_details(self):
         """
@@ -368,48 +366,37 @@ class NACA4(Airfoil):
         """
         SimpleLogger.log(
             f"Airfoil: {self.designation}, "
-            f"Chord length: {self.chord_length}, "
+            f"Chord length: {self.chord}, "
             f"Angle of attack: {self.alpha}"
         )
 
 
 class NACA5(Airfoil):
     def __init__(
-            self,
-            designation: str = None,
-            chord_length: float = None,
-            resolution: int = None,
-            setup: Settings = None
+        self,
+        designation: str = None,
+        chord_length: float = None,
+        resolution: int = None,
+        setup: Settings = None
     ):
-        """
-        Class to generate NACA 5-digit airfoil. Provides coordinates for the surface
-        lines, mean camber, thickness distribution, and angle theta along the chord.
-        Is capable to apply angle of attack. The leading edge is always on (0, 0).
-        Also allows fast plotting of the airfoil geometry.
-
-        Passed arguments are prioritized, but if not provided, the class will try to
-        extract them from the Settings object (initial settings json file).
-
-        Args:
-            designation (str): NACA 5-digit designation, e.g., '23012'
-            chord_length (float): Chord length of the airfoil in meters.
-            resolution (int): Number of points to discretize the airfoil surface along.
-            setup (Settings): Settings object to extract initial parameters from.
-        """
-        if designation is None:
-            self.designation = setup.airfoil_settings.get("Designation")
+        if setup:
+            airfoil_config = setup.airfoil_settings
+            setup_designation = airfoil_config.get("Designation", "0012")
+            setup_chord = airfoil_config.get("ChordLength", 1.0)
+            setup_resolution = airfoil_config.get("Resolution", 200)
+            setup_aoa = airfoil_config.get("AngleOfAttack", 0.0)
         else:
-            self.designation = designation
+            setup_designation = "0012"
+            setup_chord = 1.0
+            setup_resolution = 200
+            setup_aoa = 0.0
 
-        if chord_length is None:
-            self.chord_length = setup.airfoil_settings.get("Chord")
-        else:
-            self.chord_length = chord_length
+        # Prioritize passed arguments over setup values
+        self.designation = designation if designation is not None else setup_designation
+        self._chord = chord_length if chord_length is not None else setup_chord
+        self.resolution = resolution if resolution is not None else setup_resolution
+        self.angle_of_attack = setup_aoa
 
-        if resolution is None:
-            self.resolution = setup.airfoil_settings.get("Resolution")
-        else:
-            self.resolution = resolution
         self._alpha = 0.0
 
         self.x = np.linspace(0, 1, self.resolution)
@@ -629,8 +616,8 @@ class NACA5(Airfoil):
         yc = self._mean_camber_line(self.x_alpha_zero, self.cl, self.p, self.q)
         return ut.rotate_by_alpha(
             -self.alpha,
-            self.x_alpha_zero * self.chord_length,
-            yc * self.chord_length
+            self.x_alpha_zero * self.chord,
+            yc * self.chord
         )
 
     @property
@@ -649,8 +636,8 @@ class NACA5(Airfoil):
         xu, yu = self._upper_surface(self.x_alpha_zero, yc, yt, theta)
         return ut.rotate_by_alpha(
             -self.alpha,
-            xu * self.chord_length,
-            yu * self.chord_length
+            xu * self.chord_leng,
+            yu * self.chord
         )
 
     @property
@@ -669,8 +656,8 @@ class NACA5(Airfoil):
         xl, yl = self._lower_surface(self.x_alpha_zero, yc, yt, theta)
         return ut.rotate_by_alpha(
             -self.alpha,
-            xl * self.chord_length,
-            yl * self.chord_length
+            xl * self.chord,
+            yl * self.chord
         )
 
     @property
@@ -695,8 +682,8 @@ class NACA5(Airfoil):
         """
         thickness = self._thickness(self.x)
         thickness = np.array([
-            self.x * self.chord_length,
-            thickness * self.chord_length
+            self.x * self.chord,
+            thickness * self.chord
         ])
         return ut.rotate_by_alpha(-self.alpha, thickness[0], thickness[1])
 
@@ -708,7 +695,7 @@ class NACA5(Airfoil):
         Returns:
             float: chord length.
         """
-        return self.chord_length
+        return self._chord
 
     @property
     def alpha(self) -> float:
@@ -745,11 +732,20 @@ class NACA5(Airfoil):
             -self.alpha,
         )
 
-    def to_stl(self, output_path: Path, thickness: float = 0.002, dimension: int = 3) -> None:
+    def to_stl(
+            self,
+            output_path: Path,
+            thickness: float = 0.002,
+            dimension: int = 3
+    ) -> None:
         """
-        Export airfoil geometry to an extruded STL contour (semi-3D) format. This form
-        is compatible with OpenFOAM meshing utilities which do not support fully 
-        2D geometries.
+        Export airfoil geometry to STL format. It can be 2D or 3D by selecting the 
+        dimension parameter (in general depends on the mesh requirements).
+
+        Args:
+            output_path (Path): Path to save the STL file.
+            thickness (float): Thickness for 3D extrusion (only used if dimension=3).
+            dimension (int): 2 for 2D STL, 3 for extruded 3D STL.
         """
         xu, yu = self.upper_surface
         xl, yl = self.lower_surface
@@ -757,13 +753,13 @@ class NACA5(Airfoil):
         x_contour = np.concatenate([xu, xl[::-1]])
         y_contour = np.concatenate([yu, yl[::-1]])
         # Ensure the loop is closed
-        if not (x_contour[0] == x_contour[-1] and y_contour[0] == y_contour[-1]):
+        if x_contour[0] != x_contour[-1] or y_contour[0] != y_contour[-1]:
             x_contour = np.append(x_contour, x_contour[0])
             y_contour = np.append(y_contour, y_contour[0])
-        if dimension == 3:
-            ut.export_airfoil_to_stl_3d(x_contour, y_contour, output_path, thickness)
         if dimension == 2:
             ut.export_airfoil_to_stl_2d(x_contour, y_contour, output_path)
+        elif dimension == 3:
+            ut.export_airfoil_to_stl_3d(x_contour, y_contour, output_path, thickness)
 
     def airfoil_details(self):
         """
@@ -771,51 +767,59 @@ class NACA5(Airfoil):
         """
         SimpleLogger.log(
             f"Airfoil: {self.designation}, "
-            f"Chord length: {self.chord_length}, "
+            f"Chord length: {self.chord}, "
             f"Angle of attack: {self.alpha}"
         )
 
 
-class UIUCAirfoil:
+class UIUCAirfoil(Airfoil):
+    """
+    Class to generate airfoil from UIUC Airfoil Database. Provides coordinates for the
+    surface lines, mean camber, thickness distribution, and angle theta along the chord.
+    Is capable to apply angle of attack. The leading edge is always on (0, 0).
+    Also allows fast plotting of the airfoil geometry.
+
+    Passed arguments are prioritized, but if not provided, the class will try to
+    extract them from the Settings object (initial settings json file).
+
+    Args:
+        name (str): Name of the airfoil in UIUC database, e.g., 'b737d'
+        chord_length (float): Chord length of the airfoil in meters.
+        resolution (int): Number of points to discretize the airfoil surface along.
+        setup (Settings): Settings object to extract initial parameters from.
+    """
+
     def __init__(
-            self, designation: str = None,
-            chord_length: float = None,
-            resolution: int = None,
-            setup: Settings = None
+        self,
+        name: str = None,
+        chord_length: float = None,
+        resolution: int = None,
+        setup: Settings = None
     ):
-        """
-        Class to handle airfoils from the UIUC Airfoil Database. After giving
-        the designation, it downloads the .dat file, processes the coordinates,
-        resamples and provides surface lines, mean camber line, and thickness
-        distribution. Is capable to apply angle of attack. The leading edge is
-        always on (0, 0). Also allows fast plotting of the airfoil geometry.
-
-        Passed arguments are prioritized, but if not provided, the class will try to
-        extract them from the Settings object (initial settings json file).
-
-        Args:
-            designation (str): Designation of the airfoil, e.g., 'naca2412' or 'mh114'
-            chord_length (float): Chord length of the airfoil in meters.
-            resolution (int): Number of points to discretize the airfoil surface along.
-            setup (Settings): Settings object to extract initial parameters from.
-        """
-        if designation is None:
-            self.designation = setup.airfoil_settings.get("Designation")
+        # Get parameters from setup if available
+        if setup:
+            airfoil_config = setup.airfoil_settings
+            setup_name = airfoil_config.get("Name", "b737d")
+            setup_chord = airfoil_config.get("ChordLength", 1.0)
+            setup_resolution = airfoil_config.get("Resolution", 200)
+            setup_aoa = airfoil_config.get("AngleOfAttack", 0.0)
         else:
-            self.designation = designation
+            setup_name = "b737d"
+            setup_chord = 1.0
+            setup_resolution = 200
+            setup_aoa = 0.0
 
-        if chord_length is None:
-            self.chord_length = setup.airfoil_settings.get("Chord")
-        else:
-            self.chord_length = chord_length
+        # Prioritize passed arguments over setup values
+        self.name = name if name is not None else setup_name
+        self._chord = chord_length if chord_length is not None else setup_chord
+        self.resolution = resolution if resolution is not None else setup_resolution
+        self.angle_of_attack = setup_aoa
 
-        if resolution is None:
-            self.resolution = setup.airfoil_settings.get("Resolution")
-        else:
-            self.resolution = resolution
         self._alpha = 0.0
 
-        self._get_airfoil(self.designation)
+        self.x = np.linspace(0, 1, self.resolution)
+        self.x_alpha_zero = self.x.copy()
+        self._get_airfoil(self.name)
         self.airfoil_details()
 
     def download_uiuc_airfoil(self, designation: str, save_dir: str = None) -> Path:
@@ -995,8 +999,8 @@ class UIUCAirfoil:
             tuple[np.ndarray, np.ndarray]: Two arrays with x and y coordinates.
         """
         upper_line = np.array([
-            self._upper_line_resampled[0] * self.chord_length,
-            self._upper_line_resampled[1] * self.chord_length
+            self._upper_line_resampled[0] * self.chord,
+            self._upper_line_resampled[1] * self.chord
         ])
         return ut.rotate_by_alpha(-self._alpha, upper_line[0], upper_line[1])
 
@@ -1009,8 +1013,8 @@ class UIUCAirfoil:
             tuple[np.ndarray, np.ndarray]: Two arrays with x and y coordinates.
         """
         lower_line = np.array([
-            self._lower_line_resampled[0] * self.chord_length,
-            self._lower_line_resampled[1] * self.chord_length
+            self._lower_line_resampled[0] * self.chord,
+            self._lower_line_resampled[1] * self.chord
         ])
         return ut.rotate_by_alpha(-self._alpha, lower_line[0], lower_line[1])
 
@@ -1023,8 +1027,8 @@ class UIUCAirfoil:
             tuple[np.ndarray, np.ndarray]: Two arrays with x and y coordinates.
         """
         mean_camber_line = np.array([
-            self._mean_camber_line[0] * self.chord_length,
-            self._mean_camber_line[1] * self.chord_length
+            self._mean_camber_line[0] * self.chord,
+            self._mean_camber_line[1] * self.chord
         ])
         return ut.rotate_by_alpha(
             -self._alpha,
@@ -1041,8 +1045,8 @@ class UIUCAirfoil:
             tuple[np.ndarray, np.ndarray]: Two arrays with x and y coordinates.
         """
         thickness = np.array([
-            self._thickness[0] * self.chord_length,
-            self._thickness[1] * self.chord_length
+            self._thickness[0] * self.chord,
+            self._thickness[1] * self.chord
         ])
         return ut.rotate_by_alpha(-self._alpha, thickness[0], thickness[1])
 
@@ -1054,7 +1058,7 @@ class UIUCAirfoil:
         Returns:
             float: chord length.
         """
-        return self.chord_length
+        return self._chord
 
     @property
     def alpha(self) -> float:
@@ -1092,14 +1096,20 @@ class UIUCAirfoil:
             -self._alpha
         )
 
-    def to_stl(self, output_path, thickness=0.002, dimension=3) -> None:
+    def to_stl(
+            self,
+            output_path : Path,
+            thickness: float = 0.002,
+            dimension: int = 3
+    ) -> None:
         """
-        Export airfoil geometry to an extruded STL contour (semi-3D) format. This form
-        is compatible with OpenFOAM meshing utilities which do not support fully 
-        2D geometries.
+        Export airfoil geometry to STL format. It can be 2D or 3D by selecting the 
+        dimension parameter (in general depends on the mesh requirements).
 
         Args:
             output_path (Path): Path to save the STL file.
+            thickness (float): Thickness for 3D extrusion (only used if dimension=3).
+            dimension (int): 2 for 2D STL, 3 for extruded 3D STL.
         """
         xu, yu = self.upper_surface
         xl, yl = self.lower_surface
@@ -1107,13 +1117,13 @@ class UIUCAirfoil:
         x_contour = np.concatenate([xu, xl[::-1]])
         y_contour = np.concatenate([yu, yl[::-1]])
         # Ensure the loop is closed
-        if not (x_contour[0] == x_contour[-1] and y_contour[0] == y_contour[-1]):
+        if x_contour[0] != x_contour[-1] or y_contour[0] != y_contour[-1]:
             x_contour = np.append(x_contour, x_contour[0])
             y_contour = np.append(y_contour, y_contour[0])
-        if dimension == 3:
-            ut.export_airfoil_to_stl_3d(x_contour, y_contour, output_path, thickness)
         if dimension == 2:
             ut.export_airfoil_to_stl_2d(x_contour, y_contour, output_path)
+        elif dimension == 3:
+            ut.export_airfoil_to_stl_3d(x_contour, y_contour, output_path, thickness)
 
     def airfoil_details(self):
         """
@@ -1121,6 +1131,6 @@ class UIUCAirfoil:
         """
         SimpleLogger.log(
             f"Airfoil: {self.designation}, "
-            f"Chord length: {self.chord_length}, "
+            f"Chord length: {self.chord}, "
             f"Angle of attack: {self.alpha}"
         )

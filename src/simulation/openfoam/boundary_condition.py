@@ -161,7 +161,10 @@ class BoundaryConditions:
             self._pressure = pressure
             self._density = density
 
-        if self.nu is None and self.temperature is not None and self.density is not None:
+        if (
+            self.nu is None and self.temperature is not None
+            and self.density is not None
+        ):
             SimpleLogger.warning(
                 "Calculating kinematic viscosity based on temperature and density."
             )
@@ -173,10 +176,16 @@ class BoundaryConditions:
         if self.velocity is not None:
             self._as_velocity = True
             self.from_velocity(self.velocity, self.pressure)
-        elif self.mach_number is not None and self.pressure is not None and self.temperature is not None:
+        elif (
+            self.mach_number is not None and self.pressure is not None
+            and self.temperature is not None
+        ):
             self._as_mach = True
             self.from_mach_number(self.mach_number, self.pressure, self.temperature)
-        elif self.reynolds_number is not None and self.nu is not None and self.pressure is not None:
+        elif (
+            self.reynolds_number is not None and self.nu is not None
+            and self.pressure is not None
+        ):
             self._as_reynolds = True
             self.from_reynolds_number(self.reynolds_number, self.nu, self.pressure)
         else:
@@ -532,7 +541,8 @@ boundaryField
         SpalartAllmaras.
 
         Returns:
-            dict[str, str]: Formatted strings for the turbulence boundary condition files.
+            dict[str, str]: Formatted strings for the turbulence boundary condition
+                files.
         """
 
         model = self._turbulence_model.lower()

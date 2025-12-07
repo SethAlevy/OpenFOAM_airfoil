@@ -106,26 +106,67 @@ class InitialSettingsReader():
         return {
             "Airfoil": {
                 "Designation": "",
-                "GenerateNACA4": False,
-                "GenerateNACA5": False,
+                "GenerateNACA": False,
                 "DownloadUIUC": False,
                 "LoadFromFile": False,
                 "LoadFilePath": "",
+                "AngleOfAttack": 0.0,
                 "Chord": 1.0,
                 "Resolution": 200
             },
             "Mesh": {
                 "Mesher": "",
+                "BoundingBox": {
+                    "InletDistance": 0.0,
+                    "OutletDistance": 0.0,
+                    "TopDistance": 0.0,
+                    "BottomDistance": 0.0,
+                    "ZMin": 0.0,
+                    "ZMax": 0.0,
+                    "Nz": 1
+                },
                 "BlockMesh": {
-                    "BoundingBox": {
-                        "InletDistance": 0.0,
-                        "OutletDistance": 0.0,
-                        "TopDistance": 0.0,
-                        "BottomDistance": 0.0,
-                        "BaseCellSize": 0.0,
-                        "ZMin": 0.0,
-                        "ZMax": 0.0,
-                        "Nz": 1
+                    "BaseCellSize": 0.0,
+                    "NX": 0,
+                    "NY": 0,
+                    "NZ": 0
+                },
+                "CfMesh": {
+                    "MaxCellSize": 0.05,
+                    "ZMin": -0.01,
+                    "ZMax": 0.01,
+                    "LocalRefinement": {
+                        "Airfoil": {
+                            "Level": 0,
+                            "Thickness": 0.02
+                        }
+                    },
+                    "BoundaryLayers": {
+                        "Airfoil": {
+                            "NLayers": 0,
+                            "ThicknessRatio": 1.2,
+                            "MaxFirstLayerThickness": 0.001,
+                            "AllowedDiscontinuity": 1
+                        }
+                    },
+                    "ObjectRefinements": {
+                        "SphereTip": {
+                            "Type": "sphere",
+                            "Radius": 0.1,
+                            "CellSize": 0.01
+                        },
+                        "SphereLeadingEdge": {
+                            "Type": "sphere",
+                            "Radius": 0.1,
+                            "CellSize": 0.01
+                        },
+                        "AirfoilBox": {
+                            "Type": "box",
+                            "XMin": -0.5,
+                            "YMin": -0.5,
+                            "YMax": 0.5,
+                            "CellSize": 0.02
+                        }
                     }
                 },
                 "SnappyHexMesh": {
@@ -174,21 +215,11 @@ class InitialSettingsReader():
                         "NBufferCellsNoExtrude": 0,
                         "NLayerIter": 0
                     }
-                },
-                "CfMesh": {
-                    "BaseCellSize": 0.0,
-                    "DomainMin": 0.0,
-                    "DomainMax": 0.0,
-                    "AirfoilRefinementMinLevel": 0,
-                    "AirfoilRefinementMaxLevel": 0,
-                    "ResolveFeatureAngle": 0,
-                    "CurvatureRefinementLevel": 0,
-                    "ExtrudeThickness": 0.0,
-                    "ExtrudeLayers": 0
                 }
             },
             "Simulation": {
                 "CaseName": "",
+                "PrintLogs": True,
                 "ControlDict": {
                     "Solver": "",
                     "StartFrom": "",
@@ -215,25 +246,31 @@ class InitialSettingsReader():
                 },
                 "FvSchemes": {
                     "DivSchemes": {
-                        "Default": "",
-                        "DivPhiU": "",
-                        "DivPhiK": "",
-                        "DivPhiEpsilon": "",
-                        "DivPhiOmega": ""
+                        "Default": "Gauss upwind",
+                        "DivPhiU": "Gauss upwind",
+                        "DivPhiK": "Gauss upwind",
+                        "DivPhiEpsilon": "Gauss upwind",
+                        "DivPhiOmega": "Gauss upwind"
                     },
                     "LaplacianSchemes": {
-                        "Default": ""
+                        "Default": "Gauss linear corrected"
                     },
                     "InterpolationSchemes": {
-                        "Default": ""
+                        "Default": "linear"
+                    },
+                    "SnGradSchemes": {
+                        "Default": "corrected"
+                    },
+                    "DistanceSchemes": {
+                        "WallDist": "meshWave"
                     }
                 },
                 "Decomposition": {
                     "Method": "",
                     "NumberOfSubdomains": 0
                 },
-                "SurfaceFeature": {
-                    "IncludedAngle": 0
+                "SurfaceFeatureExtract": {
+                    "IncludedAngle": 150
                 },
                 "TurbulenceProperties": {
                     "Turbulence": "",

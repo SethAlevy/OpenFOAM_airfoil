@@ -466,7 +466,8 @@ roots           ();
 
 def surface_features_dict(setup: Settings, output_path: Path) -> None:
     """
-    Fill the surfaceFeaturesDict file for OpenFOAM simulation based on the provided settings.
+    Fill the surfaceFeaturesDict file for OpenFOAM simulation based on the provided
+        settings.
 
     Args:
         setup (Settings): The simulation settings.

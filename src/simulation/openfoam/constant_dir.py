@@ -117,13 +117,13 @@ def turbulence_properties_dict(setup: Settings, output_path: Path) -> None:
         setup (Settings): The simulation settings.
         output_path (Path): The path to save the turbulenceProperties file.
     """
-    turb = setup.simulation_settings.get("Turbulence", {})
-    simulation_type = turb.get("SimulationType", "RAS")
-    turbulence = turb.get("Turbulence", "on")
-    print_coeffs = turb.get("PrintCoeffs", "on")
-    model = turb.get("Model", "kOmegaSST")
-    kappa = turb.get("Kappa", 0.41)
-    E = turb.get("E", 9.8)
+    turbulence_settings = setup.simulation_settings.get("Turbulence", {})
+    simulation_type = turbulence_settings.get("SimulationType", "RAS")
+    turbulence = turbulence_settings.get("Turbulence", "on")
+    print_coeffs = turbulence_settings.get("PrintCoeffs", "on")
+    model = turbulence_settings.get("Model", "kOmegaSST")
+    kappa = turbulence_settings.get("Kappa", 0.41)
+    E = turbulence_settings.get("E", 9.8)
     model_coeffs = model_specific_coeffs_str(setup, model)
     content = generate_turbulence_properties_dict(
         simulation_type=simulation_type,

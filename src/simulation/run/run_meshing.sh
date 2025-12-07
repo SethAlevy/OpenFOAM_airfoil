@@ -14,17 +14,32 @@ fi
 
 mesher=$(cat "$setup_file" | tr -d '\r' | jq -r '.Mesh.Mesher // "cfMesh"')
 n_procs=$(cat "$setup_file" | tr -d '\r' | jq -r '.Simulation.Decomposition.NumberOfSubdomains // 1')
+print_logs=$(cat "$setup_file" | tr -d '\r' | jq -r '.Simulation.PrintLogs // false')
 
 touch open.foam
 echo "Selected mesher: ${mesher}"
 echo "Working dir: $PWD"
+echo "Print logs: ${print_logs}"
+
+mkdir -p mesh_logs
+
+run_cmd() {
+    local cmd="$1"
+    local logfile="mesh_logs/$2"
+    
+    if [ "$print_logs" = "true" ]; then
+        $cmd 2>&1 | tee "$logfile"
+    else
+        $cmd > "$logfile" 2>&1
+    fi
+}
 
 if [ "${mesher}" = "cfMesh" ]; then
     
     # This workflow uses a single call to cartesianMesh.
     # The python script prepares a composite STL file defining the whole domain.
-    echo "Running cfMesh (cartesianMesh) with composite STL..."
-    cartesian2DMesh 2>&1 | tee cartesian2DMesh.log
+    echo "Running cfMesh (cartesian2DMesh) with composite STL..."
+    run_cmd "cartesian2DMesh" "cartesian2DMesh.log"
 
     # The extrudeMesh step is not needed as the composite STL is already 3D.
 
@@ -32,32 +47,30 @@ else
     echo "Running SnappyHexMesh pipeline ..."
     if [ -f "system/surfaceFeaturesDict" ]; then
         echo "surfaceFeaturesDict found. Running surfaceFeatures ..."
-        surfaceFeatures 2>&1 | tee surfaceFeatures.log
+        run_cmd "surfaceFeatures" "surfaceFeatures.log"
     fi
 
     echo "Running blockMesh ..."
-    blockMesh 2>&1 | tee blockMesh.log
+    run_cmd "blockMesh" "blockMesh.log"
 
     if [ "$n_procs" -le 1 ]; then
         echo "Single processor. Running snappyHexMesh ..."
-        snappyHexMesh -overwrite 2>&1 | tee snappyHexMesh.log
+        run_cmd "snappyHexMesh -overwrite" "snappyHexMesh.log"
     else
         echo "Decomposing for parallel snappyHexMesh ..."
-        decomposePar -force 2>&1 | tee decomposePar.log
+        run_cmd "decomposePar -force" "decomposePar.log"
         echo "Running snappyHexMesh in parallel ..."
-        mpirun -np "$n_procs" snappyHexMesh -parallel -overwrite 2>&1 | tee snappyHexMesh.log
+        run_cmd "mpirun -np $n_procs snappyHexMesh -parallel -overwrite" "snappyHexMesh.log"
         echo "Reconstructing ..."
-        reconstructPar -constant 2>&1 | tee reconstructPar.log
+        run_cmd "reconstructPar -constant" "reconstructPar.log"
         rm -rf processor*
     fi
 fi
 
 echo "Renumbering ..."
-renumberMesh -overwrite 2>&1 | tee renumberMesh.log
+run_cmd "renumberMesh -overwrite" "renumberMesh.log"
 
 echo "Checking mesh ..."
-checkMesh 2>&1 | tee checkMesh.log
+run_cmd "checkMesh" "checkMesh.log"
 
-mkdir -p mesh_logs
-mv *.log mesh_logs/
-echo "SnappyHexMesh meshing completed."
+echo "Meshing completed. Logs saved in mesh_logs/"

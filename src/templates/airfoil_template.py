@@ -1,5 +1,6 @@
 import numpy as np
 from abc import ABC, abstractmethod
+from pathlib import Path
 
 
 class Airfoil(ABC):
@@ -71,5 +72,33 @@ class Airfoil(ABC):
 
         Returns:
             float: angle of attack in degrees.
+        """
+        pass
+
+    @abstractmethod
+    def to_stl(self, file_path: Path, thickness: float, num_points: int = 100) -> None:
+        """
+        Export airfoil geometry to STL format. It can be 2D or 3D by selecting the 
+        dimension parameter (in general depends on the mesh requirements).
+
+        Args:
+            output_path (Path): Path to save the STL file.
+            thickness (float): Thickness for 3D extrusion (only used if dimension=3).
+            dimension (int): 2 for 2D STL, 3 for extruded 3D STL.
+        """
+        pass
+
+    @abstractmethod
+    def plot(self) -> None:
+        """
+        Plot the airfoil geometry including upper surface, lower surface,
+        mean camber line, and thickness distribution.
+        """
+        pass
+
+    @abstractmethod
+    def airfoil_details(self) -> None:
+        """
+        Simple log with the airfoil details.
         """
         pass

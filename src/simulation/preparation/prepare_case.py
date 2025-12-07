@@ -88,6 +88,9 @@ def prepare_case():
 
         SimpleLogger.log(f"Loaded airfoil from file: {airfoil}")
 
+    angle_of_attack = airfoil_settings.get("AngleOfAttack", 0.0)
+    airfoil.set_angle_of_attack(angle_of_attack)
+
     SimpleLogger.log(f"Preparing case '{case_name}' in '{working_dir}'")
     prepare_openfoam_case(
         working_path=working_dir,

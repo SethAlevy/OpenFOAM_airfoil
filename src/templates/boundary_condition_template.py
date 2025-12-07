@@ -4,8 +4,8 @@ from abc import ABC, abstractmethod
 
 class BoundaryCondition(ABC):
     """ 
-    Base class for boundary condition representation. Defines the essential properties that any
-    boundary condition class must implement.
+    Base class for boundary condition representation. Defines the essential properties
+    that any boundary condition class must implement.
     """
 
     @property
