@@ -116,7 +116,7 @@
         "CaseName": "airfoilCase",
         "PrintLogs": false,
         "ControlDict": {
-            "Solver": "incompressibleFluid",
+            "Solver": "simpleFoam",
             "StartFrom": "startTime",
             "StartTime": 0,
             "EndTime": 1000,

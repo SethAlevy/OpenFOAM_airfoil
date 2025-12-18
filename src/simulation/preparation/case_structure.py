@@ -142,21 +142,23 @@ def create_constant_files(case_path: Path, setup: Settings) -> None:
     turbulence_properties_dict(setup, (case_path / "constant" / "turbulenceProperties"))
 
 
-def create_boundary_conditions_files(case_path: Path, setup: Settings) -> None:
+def create_boundary_conditions_files(bc_path: Path, setup: Settings) -> None:
     """
     Creates boundary condition files for the OpenFOAM case.
 
     Args:
-        case_path (Path): The path to the case directory.
+        bc_path (Path): The path to the boundary conditions directory ("0").
         setup (Settings): The simulation settings.
     """
     bc = BoundaryConditions(setup=setup)
     velocity_content = bc.velocity_bc()
     pressure_content = bc.pressure_bc()
 
-    bc.write_bc(velocity_content, case_path / "U")
-    bc.write_bc(pressure_content, case_path / "p")
+    bc.write_bc(velocity_content, bc_path / "U")
+    bc.write_bc(pressure_content, bc_path / "p")
 
     turbulence_content = bc.turbulence_bc()
     for filename, content in turbulence_content.items():
-        bc.write_bc(content, case_path / filename)
+        bc.write_bc(content, bc_path / filename)
+
+    bc.export_bc_to_csv(bc_path.parent / "boundary_conditions_summary.csv")

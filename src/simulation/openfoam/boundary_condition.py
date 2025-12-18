@@ -3,6 +3,7 @@ import numpy as np
 from templates.initial_settings_template import Settings
 import utils.utilities as ut
 from utils.logger import SimpleLogger
+import csv
 
 
 class BoundaryConditions:
@@ -946,6 +947,77 @@ boundaryField
             f"                  Temperature: {self.temperature} K\n"
         )
         SimpleLogger.log(f"Chord Length: {self.chord} m")
+
+    def export_bc_to_csv(self, output_path: Path) -> None:
+        """
+        Export boundary conditions details to a CSV file.
+
+        Args:
+            output_path (Path): The path to the output CSV file.
+        """
+        # Determine definition method
+        if self._as_velocity:
+            definition_method = "Velocity"
+        elif self._as_mach:
+            definition_method = "Mach Number"
+        elif self._as_reynolds:
+            definition_method = "Reynolds Number"
+        else:
+            definition_method = "Unknown"
+
+        # Calculate velocity magnitude
+        if isinstance(self.velocity, np.ndarray):
+            velocity_magnitude = np.linalg.norm(self.velocity)
+        else:
+            velocity_magnitude = self.velocity
+
+        # Prepare pressure info
+        pressure_unit = "m²/s²" if self._kinematic_pressure else "Pa"
+        pressure_value = self.pressure if self.pressure is not None else "N/A"
+
+        # Determine turbulence parameter
+        if self.turbulence_model.lower() == "komegasst":
+            turb_param = "omega"
+            turb_unit = "1/s"
+            turb_value = self.omega
+        elif self.turbulence_model.lower() == "kepsilon":
+            turb_param = "epsilon"
+            turb_unit = "m²/s³"
+            turb_value = self.epsilon
+        else:
+            turb_param = "N/A"
+            turb_unit = "-"
+            turb_value = "N/A"
+
+        # Create data rows
+        data = [
+            ["Parameter", "Unit", "Value"],
+            ["Definition Method", "-", definition_method],
+            ["Velocity", "m/s", velocity_magnitude],
+            ["Pressure", pressure_unit, pressure_value],
+            ["Mach Number", "-",
+             self.mach_number if self.mach_number is not None else "N/A"],
+            ["Reynolds Number", "-",
+             self.reynolds_number if self.reynolds_number is not None else "N/A"],
+            ["Altitude", "m", self.altitude if self.altitude is not None else "N/A"],
+            ["Kinematic Viscosity", "m²/s", self.nu if self.nu is not None else "N/A"],
+            ["Density", "kg/m³", self.density if self.density is not None else "N/A"],
+            ["Temperature", "K",
+             self.temperature if self.temperature is not None else "N/A"],
+            ["Chord Length", "m", self.chord],
+            ["Turbulence Model", "-", self.turbulence_model],
+            ["Turbulence Intensity", "-", self.turbulence_intensity],
+            ["Turbulence Length Scale", "m", self.turbulence_length_scale],
+            ["k", "m²/s²", self.k],
+            [turb_param, turb_unit, turb_value]
+        ]
+
+        # Write to CSV
+        with open(output_path, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerows(data)
+
+        SimpleLogger.log(f"Boundary conditions exported to: {output_path}")
 
     @property
     def velocity(self) -> np.ndarray:

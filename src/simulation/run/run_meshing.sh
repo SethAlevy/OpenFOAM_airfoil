@@ -27,7 +27,7 @@ run_cmd() {
     local cmd="$1"
     local logfile="mesh_logs/$2"
     
-    if [ "$print_logs" = "true" ]; then
+    if [ "$print_logs" == "true" ]; then
         $cmd 2>&1 | tee "$logfile"
     else
         $cmd > "$logfile" 2>&1

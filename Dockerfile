@@ -9,7 +9,7 @@ RUN apt-get update && \
     apt-get install -y \
       python3.11 python3.11-venv python3-pip \
       git curl wget unzip build-essential ca-certificates \
-      jq dos2unix && \
+      jq dos2unix bc && \
     rm -rf /var/lib/apt/lists/*
 
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
@@ -39,7 +39,6 @@ RUN mkdir -p /root/.cache/pypoetry/virtualenvs && \
     poetry --version && python3 --version && \
     poetry install --no-root --no-interaction --no-ansi
 
-# App code last (doesn’t invalidate cfMesh)
 COPY . /app
 RUN find /app -type f -name "*.sh" -exec dos2unix {} \; || true && \
     poetry install --no-interaction --no-ansi

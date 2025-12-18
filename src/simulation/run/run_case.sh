@@ -38,4 +38,4 @@ cd "$working_dir/$case_name"
 
 bash ./run_meshing.sh "$setup_file" 2>&1 | tee run_meshing.log
 bash ./run_simulation.sh "$setup_file" 2>&1 | tee run_simulation.log
-# bash ./run_postprocess.sh
+bash ./run_postprocess.sh "$setup_file" 2>&1 | tee run_postprocess.log

@@ -1,7 +1,11 @@
+import re
 import numpy as np
 from pathlib import Path
 from scipy.interpolate import interp1d
 from stl import mesh as np_mesh, Mode  # Import Mode from the top-level stl module
+import pyvista as pv
+from typing import Optional
+from utils.logger import SimpleLogger as logger
 
 
 def rotate_by_alpha(
@@ -412,3 +416,169 @@ def export_domain_to_fms(
         f.write("0()\n")
         f.write("0()\n")
         f.write("0()\n")
+
+
+def read_foam_log_file(file_path: Path) -> np.ndarray:
+    """
+    Read a foamLog output file and return the data as numpy array.
+
+    Args:
+        file_path: Path to the log file
+
+    Returns:
+        numpy array with the data
+
+    Raises:
+        FileNotFoundError: If the log file does not exist
+        ValueError: If the file cannot be parsed or is empty
+    """
+    if not file_path.exists():
+        raise FileNotFoundError(f"Log file not found: {file_path}")
+
+    data = np.loadtxt(file_path, comments='#')
+    return data
+
+
+def load_latest_vtm(vtk_dir: Path) -> pv.UnstructuredGrid:
+    """
+    Load the latest VTM file from OpenFOAM VTK output directory.
+
+    Args:
+        vtk_dir: Path to VTK directory (e.g., case/VTK/)
+
+    Returns:
+        PyVista mesh object
+
+    Raises:
+        FileNotFoundError: If no VTM files found
+        ValueError: If VTM file contains no valid blocks
+    """
+    vtm_files = sorted(vtk_dir.glob("*_*.vtm"))
+
+    if not vtm_files:
+        raise FileNotFoundError(f"No VTM files found in {vtk_dir}")
+
+    latest_file = vtm_files[-1]
+    logger.log(f"Loading VTM file: {latest_file.name}")
+
+    multiblock = pv.read(latest_file)
+    logger.log(f"Multi-block dataset loaded with {multiblock.n_blocks} blocks")
+
+    # Extract internal mesh
+    if 'internal' in multiblock.keys():
+        mesh = multiblock['internal']
+        logger.log(f"Internal mesh: {mesh.n_cells} cells, {mesh.n_points} points")
+    else:
+        # Use first non-empty block
+        mesh = next((multiblock[i] for i in range(multiblock.n_blocks) 
+                     if multiblock[i] is not None and multiblock[i].n_cells > 0), None)
+        
+        if mesh is None:
+            raise ValueError(f"No valid mesh blocks found in {latest_file}")
+        
+        logger.log(f"Using mesh with {mesh.n_cells} cells")
+
+    logger.log(f"Available fields: {mesh.array_names}")
+    return mesh
+
+
+def load_vtm_boundary(vtk_dir: Path, patch_name: str = 'airfoil') -> pv.PolyData:
+    """
+    Load a specific boundary patch from OpenFOAM VTM output.
+
+    Args:
+        vtk_dir: Path to VTK directory
+        patch_name: Name of boundary patch (e.g., 'airfoil', 'inlet')
+
+    Returns:
+        PyVista PolyData of the boundary patch
+
+    Raises:
+        FileNotFoundError: If VTM files or boundary file not found
+    """
+    vtm_files = sorted(vtk_dir.glob("*_*.vtm"))
+
+    if not vtm_files:
+        raise FileNotFoundError(f"No VTM files found in {vtk_dir}")
+
+    latest_file = vtm_files[-1]
+    time_folder = latest_file.stem
+    boundary_file = vtk_dir / time_folder / 'boundary' / f'{patch_name}.vtp'
+
+    if not boundary_file.exists():
+        # List available boundaries for helpful error message
+        boundary_dir = vtk_dir / time_folder / 'boundary'
+        available = [f.stem for f in boundary_dir.glob('*.vtp')] if boundary_dir.exists() else []
+        raise FileNotFoundError(
+            f"Boundary '{patch_name}' not found. Available: {available}"
+        )
+
+    boundary = pv.read(boundary_file)
+    logger.log(f"Loaded boundary '{patch_name}': {boundary.n_points} points, {boundary.n_cells} cells")
+    return boundary
+
+
+def get_velocity_magnitude(mesh: pv.UnstructuredGrid, vel_field: str = 'U') -> np.ndarray:
+    """
+    Calculate velocity magnitude from velocity vector field.
+
+    Args:
+        mesh: PyVista mesh containing velocity field
+        vel_field: Name of velocity field (default: 'U')
+
+    Returns:
+        Velocity magnitude array
+
+    Raises:
+        KeyError: If velocity field not found in mesh
+    """
+    if vel_field not in mesh.array_names:
+        raise KeyError(f"Velocity field '{vel_field}' not found. Available: {mesh.array_names}")
+
+    U = mesh[vel_field]
+    return np.linalg.norm(U, axis=1) if U.ndim > 1 else U
+
+
+def get_mesh_bounds(mesh: pv.UnstructuredGrid) -> dict:
+    """
+    Get mesh bounding box information.
+
+    Args:
+        mesh: PyVista mesh
+
+    Returns:
+        Dictionary with x, y, z min/max values
+    """
+    bounds = mesh.bounds
+    return {
+        'x_min': bounds[0],
+        'x_max': bounds[1],
+        'y_min': bounds[2],
+        'y_max': bounds[3],
+        'z_min': bounds[4],
+        'z_max': bounds[5]
+    }
+
+
+def extract_surface_data(
+    mesh: pv.UnstructuredGrid,
+    field_name: str
+) -> np.ndarray:
+    """
+    Extract field data from mesh surface.
+
+    Args:
+        mesh: PyVista mesh
+        field_name: Name of field to extract (e.g., 'p', 'U', 'Cp')
+
+    Returns:
+        Extracted field data
+
+    Raises:
+        KeyError: If field not found in mesh
+    """
+    if field_name not in mesh.array_names:
+        raise KeyError(f"Field '{field_name}' not found. Available: {mesh.array_names}")
+
+    surface = mesh.extract_surface()
+    return surface[field_name]

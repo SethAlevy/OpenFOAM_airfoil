@@ -188,14 +188,19 @@ def object_refinements(airfoil: Airfoil, refinement_dict: dict) -> str:
                 name=key
             )
         elif refinement_dict[key]["Type"] == "box":
+            x_min = refinement_dict[key].get("XMin", -0.5)
+            x_max = refinement_dict[key].get("XMax", airfoil.chord * 2)
+            y_min = refinement_dict[key].get("YMin", -0.5)
+            y_max = refinement_dict[key].get("YMax", 0.5)
+
             objects_dicts += box_refinement(
                 min_corner=refinement_dict[key].get(
                     "MinCorner",
-                    [-0.5, -0.5, 0.0]
+                    [x_min, y_min, 0.0]
                 ),
                 max_corner=refinement_dict[key].get(
                     "MaxCorner",
-                    [airfoil.chord * 2, 0.5, 0.0]
+                    [x_max, y_max, 0.0]
                 ),
                 cell_size=refinement_dict[key].get("CellSize", 0.01),
                 name=key
