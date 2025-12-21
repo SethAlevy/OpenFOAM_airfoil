@@ -60,7 +60,7 @@ echo "  Angle of Attack: $aoa degrees"
 echo "  Airfoil Patch: $airfoil_patch"
 
 echo "Calculating force coefficients..."
-postProcess -latestTime -func "forceCoeffs(libs=(forces), patches=($airfoil_patch), rho=rhoInf, rhoInf=$density, CofR=($cofr_x 0 0), liftDir=($lift_x $lift_y 0), dragDir=($drag_x $drag_y 0), pitchAxis=(0 0 1), magUInf=$velocity, lRef=$chord, Aref=$Aref)"
+postProcess -time "0:" -func "forceCoeffs(libs=(forces), patches=($airfoil_patch), rho=rhoInf, rhoInf=$density, CofR=($cofr_x 0 0), liftDir=($lift_x $lift_y 0), dragDir=($drag_x $drag_y 0), pitchAxis=(0 0 1), magUInf=$velocity, lRef=$chord, Aref=$Aref)"
 
 echo "Calculating forces..."
 postProcess -latestTime -func "forces(libs=(forces), patches=($airfoil_patch), rho=rhoInf, rhoInf=$density, CofR=($cofr_x 0 0))"
@@ -78,7 +78,7 @@ echo "Converting to VTK..."
 foamToVTK -latestTime
 
 echo "Generating visualization plots..."
-python3 /app/src/postprocess/generate_plots.py \
+poetry run python3 /app/src/postprocess/generate_plots.py \
     --case-dir "$(pwd)" \
     --plots all \
     --formats png html

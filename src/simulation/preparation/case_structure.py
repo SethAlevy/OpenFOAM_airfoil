@@ -3,7 +3,7 @@ from simulation.openfoam.block_mesh import block_mesh_dict
 from simulation.openfoam.snappy_hex_mesh import snappy_hex_mesh_dict
 from simulation.openfoam.cf_mesh_2d import cf_mesh_dict
 from simulation.openfoam.system_dir import control_dict, fv_solution_dict, \
-    fv_schemes_dict, surface_features_dict, decompose_par_dict
+    fv_schemes_dict, surface_features_dict, decompose_par_dict, add_force_coeffs_dict_from_bc
 from simulation.openfoam.constant_dir import transport_properties_dict, \
     turbulence_properties_dict
 from simulation.openfoam.boundary_condition import BoundaryConditions
@@ -48,8 +48,13 @@ def prepare_openfoam_case(
     create_meshing_files(working_path / case_name, airfoil, setup, mesher)
     create_system_files(working_path / case_name, setup)
     create_constant_files(working_path / case_name, setup)
-    create_boundary_conditions_files(working_path / case_name / "0", setup)
-
+    bc = create_boundary_conditions_files(working_path / case_name / "0", setup)
+    add_force_coeffs_dict_from_bc(
+        working_path / case_name / "system" / "controlDict",
+        bc,
+        chord=airfoil.chord
+    )
+    
 
 def create_directory_structure(working_path: Path, case_name: str) -> None:
     """
@@ -162,3 +167,4 @@ def create_boundary_conditions_files(bc_path: Path, setup: Settings) -> None:
         bc.write_bc(content, bc_path / filename)
 
     bc.export_bc_to_csv(bc_path.parent / "boundary_conditions_summary.csv")
+    return bc

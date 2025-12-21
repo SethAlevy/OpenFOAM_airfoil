@@ -5,12 +5,19 @@ ENV DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC
 ENV POETRY_VIRTUALENVS_CREATE=true
 ENV PATH="/root/.local/bin:$PATH"
 
+# PyVista/VTK headless defaults (still requires system libs below)
+ENV PYVISTA_OFF_SCREEN=true
+ENV VTK_DEFAULT_RENDER_WINDOW_OFFSCREEN=1
+
 RUN apt-get update && \
     apt-get install -y \
       python3.11 python3.11-venv python3-pip \
       git curl wget unzip build-essential ca-certificates \
-      jq dos2unix bc && \
-    rm -rf /var/lib/apt/lists/*
+      jq dos2unix bc \
+      libxrender1 libxext6 libsm6 libx11-6 \
+      libgl1 libegl1 libglib2.0-0 \
+      libgl1-mesa-dri \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
     python3 -m pip install --upgrade pip && \

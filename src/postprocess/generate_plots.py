@@ -6,7 +6,8 @@ from postprocess.visualizations import (
     plot_streamlines,
     plot_velocity_contours,
     plot_velocity_profiles,
-    plot_pressure_contours
+    plot_pressure_contours,
+    plot_force_coefficients,  # <-- ADD THIS
 )
 from templates.plot_config import DEFAULT_PLOT_CONFIG
 from utils.logger import SimpleLogger
@@ -36,11 +37,13 @@ def parse_arguments():
     parser.add_argument(
         '--plots',
         nargs='+',
-        choices=['residuals', 'streamlines', 'velocity-contours', 'pressure-contours',
-                 'velocity-profiles', 'all'],
+        choices=[
+            'residuals', 'streamlines', 'velocity-contours', 'pressure-contours',
+            'velocity-profiles', 'force-coeffs', 'all'   # <-- ADD 'force-coeffs'
+        ],
         default=['all'],
         help='List of plots to generate. Options: residuals, streamlines, '
-             'velocity-contours, pressure-contours, velocity-profiles, all. '
+             'velocity-contours, pressure-contours, velocity-profiles, force-coeffs, all. '
              'Default: all'
     )
 
@@ -137,18 +140,15 @@ def generate_plots():
     """Main function to generate plots based on command line arguments."""
     args = parse_arguments()
 
-    # Validate case directory
     case_dir = args.case_dir.resolve()
     vtk_dir, logs_dir = validate_case_directory(case_dir)
 
-    # Set output directory
     output_dir = args.output_dir if args.output_dir else case_dir / "plots"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     SimpleLogger.log(f"Generating plots for case: {case_dir}")
     SimpleLogger.log(f"Output directory: {output_dir}")
 
-    # Use default configuration
     config = DEFAULT_PLOT_CONFIG
 
     # Determine which plots to generate
@@ -156,10 +156,9 @@ def generate_plots():
     if 'all' in plots_to_generate:
         plots_to_generate = [
             'residuals', 'streamlines', 'velocity-contours',
-            'pressure-contours', 'velocity-profiles'
+            'pressure-contours', 'velocity-profiles', 'force-coeffs'  # <-- ADD HERE
         ]
 
-    # Generate residuals plot
     if 'residuals' in plots_to_generate:
         if logs_dir.exists():
             SimpleLogger.log("Generating residuals plot...")
@@ -174,14 +173,12 @@ def generate_plots():
         else:
             SimpleLogger.warning("Skipping residuals plot (logs directory not found)")
 
-    # Check if VTK directory exists for PyVista plots
     if not vtk_dir.exists():
         SimpleLogger.warning("Skipping PyVista plots (VTK directory not found)")
         return
 
     pyvista_formats = get_save_formats(args.formats, 'pyvista')
 
-    # Generate streamlines plot
     if 'streamlines' in plots_to_generate:
         SimpleLogger.log("Generating streamlines plot...")
         plot_streamlines(
@@ -195,7 +192,6 @@ def generate_plots():
             config=config
         )
 
-    # Generate velocity contours plot
     if 'velocity-contours' in plots_to_generate:
         SimpleLogger.log("Generating velocity contours plot...")
         plot_velocity_contours(
@@ -207,7 +203,6 @@ def generate_plots():
             config=config
         )
 
-    # Generate pressure contours plot
     if 'pressure-contours' in plots_to_generate:
         SimpleLogger.log("Generating pressure contours plot...")
         plot_pressure_contours(
@@ -218,7 +213,6 @@ def generate_plots():
             save_formats=pyvista_formats,
             config=config
         )
-    # Generate velocity profiles plot
     if 'velocity-profiles' in plots_to_generate:
         SimpleLogger.log("Generating velocity profiles plot...")
         matplotlib_formats = get_save_formats(args.formats, 'matplotlib')
@@ -230,6 +224,20 @@ def generate_plots():
             save_formats=matplotlib_formats,
             config=config
         )
+
+    if 'force-coeffs' in plots_to_generate:
+        SimpleLogger.log("Generating force coefficients plot...")
+        matplotlib_formats = get_save_formats(args.formats, 'matplotlib')
+        try:
+            plot_force_coefficients(
+                case_dir=case_dir,
+                output_dir=output_dir,
+                show=args.show,
+                save_formats=matplotlib_formats,
+                config=config
+            )
+        except Exception as e:
+            SimpleLogger.warning(f"Skipping force coefficients plot: {e}")
 
     SimpleLogger.log(f"\nAll plots saved to: {output_dir}")
 
