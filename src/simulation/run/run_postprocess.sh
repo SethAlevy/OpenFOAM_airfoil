@@ -83,4 +83,8 @@ poetry run python3 /app/src/postprocess/generate_plots.py \
     --plots all \
     --formats png html
 
+poetry run python3 /app/src/postprocess/generate_summary.py \
+    --case-dir "$(pwd)" \
+    --output "postprocessing_summary.csv"
+
 echo "All post-processing and visualization completed."

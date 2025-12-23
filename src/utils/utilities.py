@@ -582,3 +582,65 @@ def extract_surface_data(
 
     surface = mesh.extract_surface()
     return surface[field_name]
+
+
+def find_latest_force_coeffs_file(case_dir: Path) -> Path:
+    """
+    Find the most recent OpenFOAM forceCoeffs output file for a given case.
+
+    Args:
+        case_dir (Path): Path to the case directory.
+
+    Returns:
+        Path: Path to the selected coefficient.dat file.
+
+    Raises:
+        FileNotFoundError: If the forceCoeffs directory or file cannot be found.
+    """
+    force_coeffs_dir = case_dir / "postProcessing" / "forceCoeffs"
+    candidates = list(force_coeffs_dir.rglob("coefficient.dat"))
+    if not candidates:
+        raise FileNotFoundError(f"No coefficient.dat found under: {force_coeffs_dir}")
+
+    times = []
+    for p in candidates:
+        t = float(p.parent.name)
+        times.append((t, p.stat().st_mtime, p))
+    times.sort(reverse=True)
+    return times[0][2]
+
+
+def read_force_coeffs_dat(file_path: Path) -> dict[str, np.ndarray]:
+    """
+    Read an OpenFOAM coefficient.dat file into named columns.
+
+    Args:
+        file_path (Path): Path to coefficient.dat.
+
+    Returns:
+        dict[str, np.ndarray]: Mapping from column name to data array.
+
+    Raises:
+        ValueError: If the file cannot be parsed into numeric data.
+    """
+    header_cols: Optional[List[str]] = None
+    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            s = line.strip()
+            if not s.startswith("#"):
+                continue
+
+            maybe = s.lstrip("#").strip()
+            parts = maybe.split()
+            if parts and parts[0] == "Time":
+                header_cols = parts
+
+    data = np.loadtxt(file_path, comments="#")
+    if data.ndim == 1:
+        data = data.reshape(1, -1)
+
+    if header_cols is None:
+        header_cols = ["Time", "Cd", "Cs", "Cl", "CmRoll", "CmPitch", "CmYaw"]
+
+    ncols = min(len(header_cols), data.shape[1])
+    return {header_cols[i]: data[:, i] for i in range(ncols)}

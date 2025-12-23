@@ -4,6 +4,7 @@ from typing import List, Literal, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import pyvista as pv
 
 import utils.utilities as ut
@@ -630,70 +631,6 @@ def plot_pressure_contours(
     plotter.close()
 
 
-def find_latest_force_coeffs_file(case_dir: Path) -> Path:
-    """
-    Find the most recent OpenFOAM forceCoeffs output file for a given case.
-
-    Args:
-        case_dir (Path): Path to the case directory.
-
-    Returns:
-        Path: Path to the selected coefficient.dat file.
-
-    Raises:
-        FileNotFoundError: If the forceCoeffs directory or file cannot be found.
-    """
-    force_coeffs_dir = case_dir / "postProcessing" / "forceCoeffs"
-    candidates = list(force_coeffs_dir.rglob("coefficient.dat"))
-    if not candidates:
-        raise FileNotFoundError(f"No coefficient.dat found under: {force_coeffs_dir}")
-
-    # Sort by parent directory name as float (time), fallback to mtime
-    times = []
-    for p in candidates:
-        t = float(p.parent.name)
-        times.append((t, p.stat().st_mtime, p))
-    times.sort(reverse=True)
-    return times[0][2]
-
-
-def read_force_coeffs_dat(file_path: Path) -> dict[str, np.ndarray]:
-    """
-    Read an OpenFOAM coefficient.dat file into named columns.
-
-    Args:
-        file_path (Path): Path to coefficient.dat.
-
-    Returns:
-        dict[str, np.ndarray]: Mapping from column name to data array.
-
-    Raises:
-        ValueError: If the file cannot be parsed into numeric data.
-    """
-    header_cols: Optional[List[str]] = None
-    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-        for line in f:
-            s = line.strip()
-            if not s.startswith("#"):
-                continue
-
-            maybe = s.lstrip("#").strip()
-            parts = maybe.split()
-            if parts and parts[0] == "Time":
-                header_cols = parts
-
-    data = np.loadtxt(file_path, comments="#")
-    if data.ndim == 1:
-        data = data.reshape(1, -1)
-
-    if header_cols is None:
-        # Fallback to the common OpenFOAM forceCoeffs ordering.
-        header_cols = ["Time", "Cd", "Cs", "Cl", "CmRoll", "CmPitch", "CmYaw"]
-
-    ncols = min(len(header_cols), data.shape[1])
-    return {header_cols[i]: data[:, i] for i in range(ncols)}
-
-
 def plot_force_coefficients(
     case_dir: Path,
     output_dir: Path = None,
@@ -702,7 +639,7 @@ def plot_force_coefficients(
     config: PlotConfig = None,
 ) -> None:
     """
-    Plot force coefficients over simulation time (Cl, Cd, Cm).
+    Plot force coefficients over simulation time (Cl, Cd, Cm), with zoomed-in views.
 
     Args:
         case_dir (Path): Path to the OpenFOAM case directory.
@@ -721,10 +658,10 @@ def plot_force_coefficients(
 
     config.apply_global_settings()
 
-    file_path = find_latest_force_coeffs_file(case_dir)
+    file_path = ut.find_latest_force_coeffs_file(case_dir)
     logger.log(f"Reading force coefficients from: {file_path}")
-
-    cols = read_force_coeffs_dat(file_path)
+ 
+    cols = ut.read_force_coeffs_dat(file_path)
 
     if "Time" not in cols:
         raise KeyError(f"Missing 'Time' column in: {file_path}")
@@ -756,63 +693,245 @@ def plot_force_coefficients(
         )
     cm = cols[cm_key]
 
-    fig, axes = plt.subplots(3, 1, figsize=config.figsize_default, sharex=True)
+    # Calculate index for last 1/3 of data
+    n = len(time)
+    zoom_start = n - n // 3
 
-    axes[0].plot(
-        time,
-        cl,
+    coeffs = [
+        ("Cl", cl, config.colors_default[2] if len(
+            config.colors_default) > 2 else None),
+        ("Cd", cd, config.colors_default[1] if len(
+            config.colors_default) > 1 else None),
+        (cm_key, cm, config.colors_default[3] if len(
+            config.colors_default) > 3 else None),
+    ]
+
+    for name, values, color in coeffs:
+        fig, axes = plt.subplots(2, 1, figsize=(
+            config.figsize_default[0], config.figsize_default[1] * 1.2), sharex=False)
+
+        # Full plot
+        axes[0].plot(
+            time,
+            values,
+            linewidth=config.line_width,
+            color=color,
+        )
+        axes[0].set_ylabel(name, fontsize=config.font_size_label)
+        axes[0].set_title(f"{name} (full time history)",
+                          fontsize=config.font_size_title)
+        axes[0].grid(
+            True,
+            which=config.grid_which,
+            linestyle=config.grid_linestyle,
+            alpha=config.grid_alpha,
+        )
+
+        # Zoomed plot (last 1/3)
+        axes[1].plot(
+            time[zoom_start:],
+            values[zoom_start:],
+            linewidth=config.line_width,
+            color=color,
+        )
+        axes[1].set_ylabel(name, fontsize=config.font_size_label)
+        axes[1].set_xlabel("Time [s]", fontsize=config.font_size_label)
+        axes[1].set_title(f"{name} (last 1/3, zoomed)", fontsize=config.font_size_title)
+        axes[1].grid(
+            True,
+            which=config.grid_which,
+            linestyle=config.grid_linestyle,
+            alpha=config.grid_alpha,
+        )
+
+        if config.tight_layout:
+            plt.tight_layout()
+
+        save_matplotlib_plot(
+            output_dir, f"force_coefficients_{name.lower()}", save_formats, config.dpi)
+
+        if show:
+            plt.show()
+
+        plt.close()
+
+
+def plot_cp_distribution_sampled(
+    case_dir: Path,
+    upper_surface_points: np.ndarray,
+    lower_surface_points: np.ndarray,
+    output_dir: Path = None,
+    show: bool = False,
+    save_formats: List[Literal["png", "pdf"]] = ["png", "pdf"],
+    airfoil_patch: str = "airfoil",
+    config: PlotConfig = None,
+) -> None:
+    """
+    Plot Cp distribution for upper and lower surfaces by sampling Cp from the VTM mesh
+    at provided surface coordinates.
+
+    Args:
+        case_dir (Path): Path to the OpenFOAM case directory.
+        upper_surface_points (np.ndarray): Nx3 array of points along the upper surface.
+        lower_surface_points (np.ndarray): Nx3 array of points along the lower surface.
+        output_dir (Path): Directory where the plot will be saved. If None, the plot is not saved.
+        show (bool): Whether to display the plot.
+        save_formats (List[Literal['png', 'pdf']]): Output formats to save.
+        airfoil_patch (str): Name of the airfoil patch in the VTK output.
+        config (PlotConfig): Plot styling configuration. If None, defaults are used.
+
+    Raises:
+        KeyError: If Cp field is not found in the mesh.
+    """
+    if config is None:
+        config = DEFAULT_PLOT_CONFIG
+
+    config.apply_global_settings()
+
+    vtk_dir = case_dir / "VTK"
+    mesh = ut.load_latest_vtm(vtk_dir)
+    if "Cp" not in mesh.array_names:
+        raise KeyError("No Cp field found in the VTM mesh.")
+
+    # Sample Cp at upper and lower surface points
+    upper_poly = pv.PolyData(upper_surface_points)
+    lower_poly = pv.PolyData(lower_surface_points)
+    upper_sampled = upper_poly.sample(mesh)
+    lower_sampled = lower_poly.sample(mesh)
+    upper_cp = upper_sampled["Cp"]
+    lower_cp = lower_sampled["Cp"]
+
+    # Use chordwise distance for x-axis (projected onto the surface curve)
+    upper_s = np.linalg.norm(upper_surface_points - upper_surface_points[0], axis=1)
+    lower_s = np.linalg.norm(lower_surface_points - lower_surface_points[0], axis=1)
+
+    plt.figure(figsize=config.figsize_default)
+    plt.plot(
+        upper_s, upper_cp,
+        label="Upper Surface",
+        color=getattr(config, "color_upper_surface", "b"),
         linewidth=config.line_width,
-        color=config.colors_default[2] if len(config.colors_default) > 2 else None,
     )
-    axes[0].set_ylabel("Cl", fontsize=config.font_size_label)
-    axes[0].grid(
-        True,
-        which=config.grid_which,
-        linestyle=config.grid_linestyle,
-        alpha=config.grid_alpha,
-    )
-
-    axes[1].plot(
-        time,
-        cd,
+    plt.plot(
+        lower_s, lower_cp,
+        label="Lower Surface",
+        color=getattr(config, "color_lower_surface", "r"),
         linewidth=config.line_width,
-        color=config.colors_default[1] if len(config.colors_default) > 1 else None,
     )
-    axes[1].set_ylabel("Cd", fontsize=config.font_size_label)
-    axes[1].grid(
-        True,
-        which=config.grid_which,
-        linestyle=config.grid_linestyle,
-        alpha=config.grid_alpha,
-    )
-
-    axes[2].plot(
-        time,
-        cm,
-        linewidth=config.line_width,
-        color=config.colors_default[3] if len(config.colors_default) > 3 else None,
-    )
-    axes[2].set_ylabel(cm_key, fontsize=config.font_size_label)
-    axes[2].set_xlabel("Time [s]", fontsize=config.font_size_label)
-    axes[2].grid(
-        True,
-        which=config.grid_which,
-        linestyle=config.grid_linestyle,
-        alpha=config.grid_alpha,
-    )
-
-    fig.suptitle(
-        "Force Coefficients vs Time",
-        fontsize=config.font_size_title,
-        fontweight=config.title_fontweight,
-    )
+    plt.gca().invert_yaxis()
+    plt.xlabel("Surface distance [m]", fontsize=config.font_size_label)
+    plt.ylabel("$C_p$", fontsize=config.font_size_label)
+    plt.title("Pressure Coefficient Distribution",
+              fontsize=config.font_size_title, fontweight=config.title_fontweight)
+    plt.legend(fontsize=config.font_size_legend)
+    plt.grid(True, alpha=config.grid_alpha, linestyle=config.grid_linestyle)
 
     if config.tight_layout:
         plt.tight_layout()
 
-    save_matplotlib_plot(output_dir, "force_coefficients", save_formats, config.dpi)
+    save_matplotlib_plot(output_dir, "cp_distribution", save_formats, config.dpi)
 
-    if show:
+    if show or output_dir is None:
         plt.show()
 
+    plt.close()
+
+
+def plot_lift_curve(
+    csv_path: Path,
+    output_dir: Path = None,
+    show: bool = False,
+    save_formats: List[Literal["png", "pdf"]] = ["png", "pdf"],
+    config: PlotConfig = None,
+) -> None:
+    """
+    Plot lift curve (Cl vs Angle of Attack) from a summary CSV of multiple cases.
+
+    Args:
+        csv_path (Path): Path to the summary CSV file.
+        output_dir (Path): Directory where the plot will be saved.
+        show (bool): Whether to display the plot.
+        save_formats (List[Literal['png', 'pdf']]): Output formats to save.
+        config (PlotConfig): Plot styling configuration.
+    """
+    if config is None:
+        config = DEFAULT_PLOT_CONFIG
+
+    config.apply_global_settings()
+
+    df = pd.read_csv(csv_path)
+    aoa = df["AngleOfAttack"].astype(float)
+    cl = df["Cl"].astype(float)
+
+    plt.figure(figsize=config.figsize_default)
+    plt.plot(
+        aoa, cl,
+        marker="o",
+        linestyle="-",
+        color=config.colors_default[2] if len(config.colors_default) > 2 else "b",
+        linewidth=config.line_width,
+    )
+    plt.xlabel("Angle of Attack [deg]", fontsize=config.font_size_label)
+    plt.ylabel("$C_l$", fontsize=config.font_size_label)
+    plt.title("Lift Curve ($C_l$ vs Angle of Attack)",
+              fontsize=config.font_size_title, fontweight=config.title_fontweight)
+    plt.grid(True, alpha=config.grid_alpha, linestyle=config.grid_linestyle)
+
+    if config.tight_layout:
+        plt.tight_layout()
+
+    save_matplotlib_plot(output_dir, "lift_curve", save_formats, config.dpi)
+
+    if show or output_dir is None:
+        plt.show()
+    plt.close()
+
+
+def plot_drag_polar(
+    csv_path: Path,
+    output_dir: Path = None,
+    show: bool = False,
+    save_formats: List[Literal["png", "pdf"]] = ["png", "pdf"],
+    config: PlotConfig = None,
+) -> None:
+    """
+    Plot drag polar (Cd vs Cl) from a summary CSV of multiple cases.
+
+    Args:
+        csv_path (Path): Path to the summary CSV file.
+        output_dir (Path): Directory where the plot will be saved.
+        show (bool): Whether to display the plot.
+        save_formats (List[Literal['png', 'pdf']]): Output formats to save.
+        config (PlotConfig): Plot styling configuration.
+    """
+    if config is None:
+        config = DEFAULT_PLOT_CONFIG
+
+    config.apply_global_settings()
+
+    df = pd.read_csv(csv_path)
+    cl = df["Cl"].astype(float)
+    cd = df["Cd"].astype(float)
+
+    plt.figure(figsize=config.figsize_default)
+    plt.plot(
+        cl, cd,
+        marker="o",
+        linestyle="-",
+        color=config.colors_default[1] if len(config.colors_default) > 1 else "r",
+        linewidth=config.line_width,
+    )
+    plt.xlabel("$C_l$", fontsize=config.font_size_label)
+    plt.ylabel("$C_d$", fontsize=config.font_size_label)
+    plt.title("Drag Polar ($C_d$ vs $C_l$)", fontsize=config.font_size_title,
+              fontweight=config.title_fontweight)
+    plt.grid(True, alpha=config.grid_alpha, linestyle=config.grid_linestyle)
+
+    if config.tight_layout:
+        plt.tight_layout()
+
+    save_matplotlib_plot(output_dir, "drag_polar", save_formats, config.dpi)
+
+    if show or output_dir is None:
+        plt.show()
     plt.close()

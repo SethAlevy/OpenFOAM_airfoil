@@ -33,6 +33,7 @@ poetry run python3 ../preparation/prepare_case.py \
     --case-name "$case_name" 2>&1 | tee prepare_case.log
 
 cp *.sh "$working_dir/$case_name/"
+cp ${setup_file} "$working_dir/$case_name/${case_name}.json"
 
 cd "$working_dir/$case_name"
 
