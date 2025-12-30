@@ -18,16 +18,17 @@ def get_bounding_box(airfoil: Airfoil, bounding_box_settings: dict) -> tuple:
         tuple: Containing (x_min, x_max, y_min, y_max, z_min, z_max).
     """
     chord = airfoil.chord
-    x_upstream = bounding_box_settings.get("XUpstream", 5.0) * chord
-    x_downstream = bounding_box_settings.get("XDownstream", 10.0) * chord
-    y_span = bounding_box_settings.get("YSpan", 5.0) * chord
-    z_min = bounding_box_settings.get("ZMin", 0.0)
-    z_max = bounding_box_settings.get("ZMax", 0.0)
+    x_upstream = bounding_box_settings.get("InletDistance", 5.0) * chord
+    x_downstream = bounding_box_settings.get("OutletDistance", 10.0) * chord
+    y_top = bounding_box_settings.get("TopDistance", 5.0) * chord
+    y_bottom = bounding_box_settings.get("BottomDistance", 5.0) * chord
+    z_min = bounding_box_settings.get("ZMin", -0.5)
+    z_max = bounding_box_settings.get("ZMax", 0.5)
 
     x_min = -x_upstream
     x_max = x_downstream
-    y_min = -y_span
-    y_max = y_span
+    y_min = -y_bottom
+    y_max = y_top
 
     return x_min, x_max, y_min, y_max, z_min, z_max
 

@@ -1,14 +1,10 @@
 import argparse
 from pathlib import Path
 from typing import List
-from postprocess.visualizations import (
-    plot_residuals,
-    plot_streamlines,
-    plot_velocity_contours,
-    plot_velocity_profiles,
-    plot_pressure_contours,
-    plot_force_coefficients,  # <-- ADD THIS
-)
+from postprocess.plotting.matplotlib_plots import (plot_residuals, plot_velocity_profiles,
+                                                   plot_force_coefficients)
+from postprocess.plotting.pyvista_plots import (plot_streamlines, plot_velocity_contours,
+                                                plot_pressure_contours)
 from templates.plot_config import DEFAULT_PLOT_CONFIG
 from utils.logger import SimpleLogger
 

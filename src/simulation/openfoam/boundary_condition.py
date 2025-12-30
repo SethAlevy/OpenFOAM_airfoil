@@ -174,6 +174,10 @@ class BoundaryConditions:
 
             SimpleLogger.log(f"Kinematic viscosity: {self.nu} m²/s")
 
+        self._as_velocity = False
+        self._as_mach = False
+        self._as_reynolds = False
+
         if self.velocity is not None:
             self._as_velocity = True
             self.from_velocity(self.velocity, self.pressure)
@@ -1000,15 +1004,15 @@ boundaryField
             ["Reynolds Number", "-",
              self.reynolds_number if self.reynolds_number is not None else "N/A"],
             ["Altitude", "m", self.altitude if self.altitude is not None else "N/A"],
-            ["Kinematic Viscosity", "m²/s", self.nu if self.nu is not None else "N/A"],
-            ["Density", "kg/m³", self.density if self.density is not None else "N/A"],
+            ["Kinematic Viscosity", "m2/s", self.nu if self.nu is not None else "N/A"],
+            ["Density", "kg/m3", self.density if self.density is not None else "N/A"],
             ["Temperature", "K",
              self.temperature if self.temperature is not None else "N/A"],
             ["Chord Length", "m", self.chord],
             ["Turbulence Model", "-", self.turbulence_model],
             ["Turbulence Intensity", "-", self.turbulence_intensity],
             ["Turbulence Length Scale", "m", self.turbulence_length_scale],
-            ["k", "m²/s²", self.k],
+            ["k", "m2/s2", self.k],
             [turb_param, turb_unit, turb_value]
         ]
 

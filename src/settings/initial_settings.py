@@ -150,7 +150,7 @@ class InitialSettingsReader():
                         }
                     },
                     "ObjectRefinements": {
-                        "SphereTip": {
+                        "SphereTrailingEdge": {
                             "Type": "sphere",
                             "Radius": 0.1,
                             "CellSize": 0.01
@@ -172,8 +172,8 @@ class InitialSettingsReader():
                 "SnappyHexMesh": {
                     "Geometry": {
                         "RefinementBoxLevel": 0,
-                        "SphereTipLevel": 0,
-                        "SphereTipRadius": 0.0,
+                        "SphereTrailingEdgeLevel": 0,
+                        "SphereTrailingEdgeRadius": 0.0,
                         "SphereLeadingEdgeLevel": 0,
                         "SphereLeadingEdgeRadius": 0.0
                     },

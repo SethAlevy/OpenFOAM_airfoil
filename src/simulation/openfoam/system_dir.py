@@ -67,7 +67,6 @@ def generate_control_dict(
         time_format: str = "general",
         time_precision: int = 6,
         run_time_modifiable: str = "true",
-        force_coeffs_dict: dict = None
 ) -> str:
     """
     Generate controlDict file content with essential parameters.
@@ -88,7 +87,6 @@ def generate_control_dict(
         time_format (str): Format for time representation.
         time_precision (int): Precision for time representation.
         run_time_modifiable (str): Whether runtime modifiable is enabled.
-        force_coeffs_dict (dict): Optional dictionary with forceCoeffs parameters.
 
     Returns:
         str: The filled controlDict content.
@@ -119,16 +117,6 @@ timeFormat      {time_format};
 timePrecision   {time_precision};
 runTimeModifiable {run_time_modifiable};
 """
-
-    if force_coeffs_dict:
-        content += "\nfunctions\n{\n    forceCoeffs\n    {\n"
-        for k, v in force_coeffs_dict.items():
-            # Format lists/tuples as OpenFOAM vectors
-            if isinstance(v, (list, tuple)):
-                v = "(" + " ".join(str(x) for x in v) + ")"
-            content += f"        {k}        {v};\n"
-        content += "    }\n}\n"
-
     return content
 
 
@@ -556,18 +544,13 @@ def add_force_coeffs_dict_from_bc(
     chord: float,
     airfoil_patch: str = "airfoil",
     span: float = 1.0,
-    cofr_x_frac: float = 0.25
+    cofr_x_frac: float = 0.25,
+    angle_of_attack_deg: float = 0.0
 ) -> None:
     """
-    Append a forceCoeffs function object to an existing controlDict file,
+    Append a minimal forceCoeffs function object to an existing controlDict file,
     using values from a BoundaryConditions object.
-
-    Args:
-        control_dict_path (Path): Path to the controlDict file.
-        bc (BoundaryConditions): BoundaryConditions object with all required info.
-        airfoil_patch (str): Name of the airfoil patch.
-        span (float): Span length (for 2D, use 1.0).
-        cofr_x_frac (float): Fractional chord location for CofR (e.g. 0.25 for quarter-chord).
+    CofR is set at 0.25 chord, rotated by angle of attack.
     """
     velocity = bc.velocity
     if hasattr(velocity, "__len__"):
@@ -575,36 +558,42 @@ def add_force_coeffs_dict_from_bc(
     else:
         mag_u_inf = float(velocity)
     a_ref = chord * span
-    cofr = [chord * cofr_x_frac, 0, 0]
     density = float(bc.density)
 
-    # Directions (assuming AoA=0, modify if needed)
+    # Calculate CofR at 0.25 chord, rotated by AoA
+    alpha_rad = np.radians(angle_of_attack_deg)
+    cofr_x = chord * cofr_x_frac * np.cos(alpha_rad)
+    cofr_y = chord * cofr_x_frac * np.sin(alpha_rad)
+    cofr = [cofr_x, cofr_y, 0]
+
     lift_dir = [0, 1, 0]
     drag_dir = [1, 0, 0]
     pitch_axis = [0, 0, 1]
 
-    fc_dict = {
-        "type": "forceCoeffs",
-        "libs": ["libforces.so"],
-        "patches": [airfoil_patch],
-        "liftDir": lift_dir,
-        "dragDir": drag_dir,
-        "pitchAxis": pitch_axis,
-        "CofR": cofr,
-        "magUInf": mag_u_inf,
-        "lRef": chord,
-        "Aref": a_ref,
-        "rho": "rhoInf",
-        "rhoInf": density,
-        "writeControl": "timeStep",
-        "writeInterval": 1,
-        "log": "true"
-    }
-
     with open(control_dict_path, "a") as f:
-        f.write("\nfunctions\n{\n    forceCoeffs\n    {\n")
-        for k, v in fc_dict.items():
-            if isinstance(v, (list, tuple)):
-                v = "(" + " ".join(str(x) for x in v) + ")"
-            f.write(f"        {k}        {v};\n")
-        f.write("    }\n}\n")
+        f.write(
+            f"""
+functions
+{{
+    forceCoeffs
+    {{
+        type            forceCoeffs;
+        libs            ("libforces.so");
+        patches         ({airfoil_patch});
+        rho         rhoInf;
+        rhoInf          {density};
+        log             yes;
+        writeControl    timeStep;
+        writeInterval   5;
+        CofR            ({' '.join(str(x) for x in cofr)});
+        liftDir         ({' '.join(str(x) for x in lift_dir)});
+        dragDir         ({' '.join(str(x) for x in drag_dir)});
+        pitchAxis       ({' '.join(str(x) for x in pitch_axis)});
+        magUInf         {mag_u_inf};
+        lRef            {chord};
+        Aref            {a_ref};
+        writeFields     no;
+    }}
+}}
+"""
+        )

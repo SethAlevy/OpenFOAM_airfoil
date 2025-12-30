@@ -5,7 +5,6 @@ ENV DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC
 ENV POETRY_VIRTUALENVS_CREATE=true
 ENV PATH="/root/.local/bin:$PATH"
 
-# PyVista/VTK headless defaults (still requires system libs below)
 ENV PYVISTA_OFF_SCREEN=true
 ENV VTK_DEFAULT_RENDER_WINDOW_OFFSCREEN=1
 
@@ -40,7 +39,6 @@ RUN /usr/bin/openfoam2406 -c 'cd /opt/cfmesh-src && /bin/bash ./Allwmake'
 
 WORKDIR /app
 
-# Cache-friendly deps
 COPY pyproject.toml poetry.lock* /app/
 RUN mkdir -p /root/.cache/pypoetry/virtualenvs && \
     poetry --version && python3 --version && \

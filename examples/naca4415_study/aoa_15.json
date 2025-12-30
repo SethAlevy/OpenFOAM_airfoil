@@ -5,109 +5,45 @@
         "Designation": "NACA4415",
         "LoadFromFile": false,
         "LoadFilePath": "",
-        "Chord": 1.2,
-        "Resolution": 400,
-        "AngleOfAttack": 5.0
+        "Chord": 0.6,
+        "Resolution": 3000,
+        "AngleOfAttack": 15.0
     },
     "Mesh": {
         "Mesher": "cfMesh",
         "BoundingBox": {
-            "InletDistance": 2.0,
+            "InletDistance": 1.5,
             "OutletDistance": 5.0,
-            "TopDistance": 2.0,
-            "BottomDistance": 2.0,
+            "TopDistance": 1.5,
+            "BottomDistance": 1.5,
             "ZMin": -0.01,
             "ZMax": 0.01
         },
         "CfMesh": {
             "MaxCellSize": 0.05,
-            "ZMin": -0.01,
-            "ZMax": 0.01,
             "LocalRefinement": {
-                "Airfoil": {
-                    "Level": 0,
-                    "Thickness": 0.02
+                "airfoil": {
+                    "Level": 5,
+                    "Thickness": 0.15
                 }
             },
             "BoundaryLayers": {
-                "Airfoil": {
-                    "NLayers": 0,
-                    "ThicknessRatio": 1.2,
-                    "MaxFirstLayerThickness": 0.001,
+                "airfoil": { 
+                    "NLayers": 6,
+                    "ThicknessRatio": 1.1,
+                    "MaxFirstLayerThickness": 0.00035,
                     "AllowedDiscontinuity": 1
                 }
             },
             "ObjectRefinements": {
-                "SphereTip": {
-                    "Type": "sphere",
-                    "Radius": 0.1,
-                    "CellSize": 0.01
-                },
-                "SphereLeadingEdge": {
-                    "Type": "sphere",
-                    "Radius": 0.1,
-                    "CellSize": 0.01
-                },
-                "AirfoilBox": {
+                "airfoilBox": {
                     "Type": "box",
-                    "XMin": -0.5,
-                    "YMin": -0.5,
-                    "YMax": 0.5,
-                    "CellSize": 0.02
+                    "XMin": -1.0,
+                    "XMax": 3.0,
+                    "YMin": -1.0,
+                    "YMax": 1.0,
+                    "CellSize": 0.01
                 }
-            }
-        },
-        "BlockMesh": {
-            "BaseCellSize": 0.1,
-            "NX": 100,
-            "NY": 50,
-            "NZ": 1
-        },
-        "SnappyHexMesh": {
-            "Geometry": {
-                "RefinementBoxLevel": 0,
-                "SphereTipLevel": 0,
-                "SphereTipRadius": 0.1,
-                "SphereLeadingEdgeLevel": 0,
-                "SphereLeadingEdgeRadius": 0.1
-            },
-            "SnapControls": {
-                "NSmoothPatch": 5,
-                "Tolerance": 2.0,
-                "NSolveIter": 300,
-                "NRelaxIter": 5,
-                "NFeatureSnapIter": 10
-            },
-            "CastellatedMeshControls": {
-                "MaxLocalCells": 1000000,
-                "MaxGlobalCells": 2000000,
-                "MinRefinementCells": 10,
-                "MaxLoadUnbalance": 0.10,
-                "NCellsBetweenLevels": 3,
-                "MinSurfaceRefinementLevel": 6,
-                "MaxSurfaceRefinementLevel": 7,
-                "FeatureRefinementLevel": 3,
-                "ResolveFeatureAngle": 30,
-                "MakeBaffle": false,
-                "AllowFreeStandingZoneFaces": true
-            },
-            "AddLayersControls": {
-                "AddLayers": false,
-                "NSurfaceLayers": 0,
-                "ExpansionRatio": 1.0,
-                "FinalLayerThickness": 0.3,
-                "MinThickness": 0.1,
-                "NGrow": 0,
-                "FeatureAngle": 60,
-                "NRelaxIter": 3,
-                "NSmoothSurfaceNormals": 1,
-                "NSmoothNormals": 3,
-                "NSmoothThickness": 10,
-                "MaxFaceThicknessRatio": 0.5,
-                "MaxThicknessToMedialRatio": 0.3,
-                "MinMedianAxisAngle": 90,
-                "NBufferCellsNoExtrude": 0,
-                "NLayerIter": 50
             }
         }
     },
@@ -119,10 +55,10 @@
             "Solver": "simpleFoam",
             "StartFrom": "startTime",
             "StartTime": 0,
-            "EndTime": 1000,
+            "EndTime": 2500,
             "DeltaT": 1,
             "WriteControl": "timeStep",
-            "WriteInterval": 250,
+            "WriteInterval": 500,
             "PurgingInterval": 0
         },
         "FvSolution": {
@@ -196,14 +132,11 @@
         },
         "Fluid": {
             "KinematicViscosity": 1.5e-05,
-            "Density": 1.225,
-            "Temperature": 300
+            "Density": 1.225
         },
         "BoundaryConditions": {
-            "Velocity": 150.0,
             "Pressure": 0.0,
-            "MachNumber": 0.5,
-            "ReynoldsNumber": 500000,
+            "ReynoldsNumber": 1000000,
             "InletPatchName": "inlet",
             "OutletPatchName": "outlet",
             "LowerWallPatchName": "lowerWall",

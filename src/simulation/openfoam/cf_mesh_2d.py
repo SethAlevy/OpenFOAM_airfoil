@@ -65,12 +65,12 @@ def boundary_layers(layers_dict: dict) -> str:
         discontinuity = settings.get("AllowedDiscontinuity", 1)
 
         entry = f"""    {patch_name}
-    {{
-        nLayers              {n_layers};
-        thicknessRatio       {thickness_ratio};
-        maxFirstLayerThickness {max_first_layer};
-        allowedDiscontinuity {discontinuity};
-    }}"""
+        {{
+            nLayers              {n_layers};
+            thicknessRatio       {thickness_ratio};
+            maxFirstLayerThickness {max_first_layer};
+            allowedDiscontinuity {discontinuity};
+        }}"""
         layer_entries.append(entry)
 
     layer_content = "\n\n".join(layer_entries)
