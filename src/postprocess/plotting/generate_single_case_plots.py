@@ -39,7 +39,7 @@ def parse_arguments():
         ],
         default=['all'],
         help='List of plots to generate. Options: residuals, streamlines, '
-             'velocity-contours, pressure-contours, velocity-profiles, force-coeffs, all. '
+             'velocity-contours, pressure-contours, velocity-profiles, force-coeffs, all.'
              'Default: all'
     )
 

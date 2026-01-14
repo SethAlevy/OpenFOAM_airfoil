@@ -436,7 +436,6 @@ def plot_cp_distribution_sampled(
     if "Cp" not in mesh.array_names:
         raise KeyError("No Cp field found in the VTM mesh.")
 
-    # Sample Cp at upper and lower surface points
     upper_poly = pv.PolyData(upper_surface_points)
     lower_poly = pv.PolyData(lower_surface_points)
     upper_sampled = upper_poly.sample(mesh)
@@ -444,15 +443,26 @@ def plot_cp_distribution_sampled(
     upper_cp = upper_sampled["Cp"]
     lower_cp = lower_sampled["Cp"]
 
-    # Use chordwise distance for x-axis (projected onto the surface curve)
     upper_s = np.linalg.norm(upper_surface_points - upper_surface_points[0], axis=1)
     lower_s = np.linalg.norm(lower_surface_points - lower_surface_points[0], axis=1)
 
     color_upper = getattr(config, "color_upper_surface", "b") if config else "b"
     color_lower = getattr(config, "color_lower_surface", "r") if config else "r"
     series = [
-        {"x": upper_s, "y": upper_cp, "label": "Upper Surface", "color": color_upper, "plot_type": plot_type},
-        {"x": lower_s, "y": lower_cp, "label": "Lower Surface", "color": color_lower, "plot_type": plot_type},
+        {
+            "x": upper_s,
+            "y": upper_cp,
+            "label": "Upper Surface",
+            "color": color_upper,
+            "plot_type": plot_type
+        },
+        {
+            "x": lower_s,
+            "y": lower_cp,
+            "label": "Lower Surface",
+            "color": color_lower,
+            "plot_type": plot_type
+        },
     ]
 
     plt.gca().invert_yaxis()

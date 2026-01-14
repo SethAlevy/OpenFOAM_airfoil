@@ -2,8 +2,15 @@ from pathlib import Path
 from simulation.openfoam.block_mesh import block_mesh_dict
 from simulation.openfoam.snappy_hex_mesh import snappy_hex_mesh_dict
 from simulation.openfoam.cf_mesh_2d import cf_mesh_dict
-from simulation.openfoam.system_dir import control_dict, fv_solution_dict, \
-    fv_schemes_dict, surface_features_dict, decompose_par_dict, add_force_coeffs_dict_from_bc
+from simulation.openfoam.system_dir import (
+    add_force_coeffs_dict_from_bc,
+    control_dict,
+    fv_schemes_dict,
+    surface_feature_extract_dict,
+    decompose_par_dict,
+    fv_solution_dict,
+    extrude_mesh_dict
+)
 from simulation.openfoam.constant_dir import transport_properties_dict, \
     turbulence_properties_dict
 from simulation.openfoam.boundary_condition import BoundaryConditions
@@ -30,19 +37,20 @@ def prepare_openfoam_case(
     create_directory_structure(working_path, case_name)
 
     mesher = setup.mesh_settings.get("Mesher")
+    z_min = setup.mesh_settings.get("BoundingBox", {}).get("ZMin", -0.5)
+    z_max = setup.mesh_settings.get("BoundingBox", {}).get("ZMax", 0.5)
 
-    if mesher and mesher.lower() in ["snappyhexmesh"]:
+    if mesher and mesher.lower() in ["placeholder2d"]:
         airfoil.to_stl(
-            working_path / case_name / "constant" / "triSurface" / "airfoil.stl", 2
+            output_path=working_path / case_name / "constant" / "triSurface" / "airfoil.stl",
+            dimension=2
         )
-    elif mesher and mesher.lower() in ["cfmesh"]:
-        z_min = setup.mesh_settings.get("cfMesh", {}).get("ZMin", -0.001)
-        z_max = setup.mesh_settings.get("cfMesh", {}).get("ZMax", 0.001)
-        thickness = z_max - z_min
+    elif mesher and mesher.lower() in ["cfmesh", "snappyhexmesh"]:
+        thickness = (z_max - z_min) * 1.01
         airfoil.to_stl(
-            working_path / case_name / "constant" / "triSurface" / "airfoil.stl",
-            thickness,
-            3
+            output_path=working_path / case_name / "constant" / "triSurface" / "airfoil.stl",
+            thickness=thickness,
+            dimension=3
         )
 
     create_meshing_files(working_path / case_name, airfoil, setup, mesher)
@@ -52,9 +60,11 @@ def prepare_openfoam_case(
     add_force_coeffs_dict_from_bc(
         working_path / case_name / "system" / "controlDict",
         bc,
-        chord=airfoil.chord
+        chord=airfoil.chord,
+        span=abs(z_max - z_min),
+        angle_of_attack_deg=airfoil.alpha
     )
-    
+
 
 def create_directory_structure(working_path: Path, case_name: str) -> None:
     """
@@ -122,17 +132,22 @@ def create_system_files(case_path: Path, setup: Settings) -> None:
     if n_processors and n_processors > 1:
         decompose_par_dict(setup, (case_path / "system" / "decomposeParDict"))
 
-    feature_refinement = (
-        setup.mesh_settings
-        .get("SnappyHexMesh", {})
-        .get("CastellatedMeshControls", {})
-        .get("FeatureRefinementLevel", 0)
-    )
-    if feature_refinement and feature_refinement > 0:
-        surface_features_dict(
-            setup,
-            (case_path / "system" / "surfaceFeaturesDict")
+    mesher = setup.mesh_settings.get("Mesher", "").lower()
+
+    if mesher == "snappyhexmesh":
+        feature_refinement = (
+            setup.mesh_settings
+            .get("SnappyHexMesh", {})
+            .get("CastellatedMeshControls", {})
+            .get("FeatureRefinementLevel", 0)
         )
+        if feature_refinement and feature_refinement > 0:
+            surface_feature_extract_dict(
+                setup,
+                (case_path / "system" / "surfaceFeatureExtractDict")
+            )
+
+        extrude_mesh_dict(setup, (case_path / "system" / "extrudeMeshDict"))
 
 
 def create_constant_files(case_path: Path, setup: Settings) -> None:

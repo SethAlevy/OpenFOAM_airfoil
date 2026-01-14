@@ -23,7 +23,8 @@ def parse_arguments():
         '--mean-n',
         type=int,
         default=1,
-        help='Number of last timesteps to average for coefficients (default: 1, i.e. last value only).'
+        help='Number of last timesteps to average for coefficients (default: 1, i.e. last'
+        'value only).'
     )
     return parser.parse_args()
 

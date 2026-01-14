@@ -90,7 +90,7 @@ def prepare_case():
 
     angle_of_attack = airfoil_settings.get("AngleOfAttack", 0.0)
     airfoil.set_angle_of_attack(angle_of_attack)
-    airfoil.plot(title=f"Airfoil: {designation} at AoA: {angle_of_attack}°", save_path='plots')
+    airfoil.plot(title=f"Airfoil: {designation} at AoA: {angle_of_attack}°", save_path='plots', show=False)
 
     SimpleLogger.log(f"Preparing case '{case_name}' in '{working_dir}'")
     prepare_openfoam_case(

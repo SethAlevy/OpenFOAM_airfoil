@@ -102,14 +102,14 @@ def setup_pyvista_plotter(
 
 
 def plot_streamlines(
-    vtk_dir: Path,
-    output_dir: Path = None,
-    show: bool = False,
-    n_streamlines: int = 20,
-    add_airfoil: bool = True,
-    add_mesh: bool = False,
-    save_formats: List[Literal["png", "html"]] = ["png", "html"],
-    config: PlotConfig = None,
+        vtk_dir: Path,
+        output_dir: Path = None,
+        show: bool = False,
+        n_streamlines: int = 20,
+        add_airfoil: bool = True,
+        add_mesh: bool = False,
+        save_formats: List[Literal["png", "html"]] = None,
+        config: PlotConfig = None,
 ) -> None:
     """
     Plot velocity streamlines around the airfoil.
@@ -125,6 +125,8 @@ def plot_streamlines(
         save_formats (List[Literal['png', 'html']]): Output formats to save.
         config (PlotConfig): Plot styling configuration. If None, defaults are used.
     """
+    if save_formats is None:
+        save_formats = ["png", "html"]
     if config is None:
         config = DEFAULT_PLOT_CONFIG
 
@@ -187,12 +189,12 @@ def plot_streamlines(
 
 
 def plot_velocity_contours(
-    vtk_dir: Path,
-    output_dir: Path = None,
-    show: bool = False,
-    add_airfoil: bool = True,
-    save_formats: List[Literal["png", "html"]] = ["png", "html"],
-    config: PlotConfig = None,
+        vtk_dir: Path,
+        output_dir: Path = None,
+        show: bool = False,
+        add_airfoil: bool = True,
+        save_formats: List[Literal["png", "html"]] = None,
+        config: PlotConfig = None,
 ) -> None:
     """
     Plot velocity magnitude contours around the airfoil.
@@ -206,6 +208,8 @@ def plot_velocity_contours(
         save_formats (List[Literal['png', 'html']]): Output formats to save.
         config (PlotConfig): Plot styling configuration. If None, defaults are used.
     """
+    if save_formats is None:
+        save_formats = ["png", "html"]
     if config is None:
         config = DEFAULT_PLOT_CONFIG
 
@@ -237,12 +241,12 @@ def plot_velocity_contours(
 
 
 def plot_pressure_contours(
-    vtk_dir: Path,
-    output_dir: Path = None,
-    show: bool = False,
-    add_airfoil: bool = True,
-    save_formats: List[Literal["png", "html"]] = ["png", "html"],
-    config: PlotConfig = None,
+        vtk_dir: Path,
+        output_dir: Path = None,
+        show: bool = False,
+        add_airfoil: bool = True,
+        save_formats: List[Literal["png", "html"]] = None,
+        config: PlotConfig = None,
 ) -> None:
     """
     Plot pressure contours around the airfoil.
@@ -256,6 +260,8 @@ def plot_pressure_contours(
         save_formats (List[Literal['png', 'html']]): Output formats to save.
         config (PlotConfig): Plot styling configuration. If None, defaults are used.
     """
+    if save_formats is None:
+        save_formats = ["png", "html"]
     if config is None:
         config = DEFAULT_PLOT_CONFIG
 

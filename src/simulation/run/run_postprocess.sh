@@ -5,7 +5,7 @@ setup_file="$1"
 set --
 
 source /usr/lib/openfoam/openfoam2406/etc/bashrc || true
-set -ex
+set -e
 
 if [ -z "$setup_file" ]; then
     echo "Usage: $0 <setup_file>"
@@ -78,7 +78,7 @@ echo "Converting to VTK..."
 foamToVTK -latestTime
 
 echo "Generating visualization plots..."
-poetry run python3 /app/src/postprocess/generate_plots.py \
+poetry run python3 /app/src/postprocess/plotting/generate_single_case_plots.py \
     --case-dir "$(pwd)" \
     --plots all \
     --formats png html

@@ -1,6 +1,6 @@
 from pathlib import Path
 from templates.initial_settings_template import Settings
-from templates.boundary_condition_template import BoundaryCondition
+from templates.boundary_conditions.boundary_condition_template import BoundaryCondition
 import numpy as np
 
 
@@ -129,37 +129,69 @@ def fv_solution_dict(setup: Settings, output_path: Path) -> None:
         output_path (Path): The path to save the fvSolution file.
     """
     fv_solution_setup = setup.simulation_settings.get("FvSolution", {})
-    p_solver = fv_solution_setup.get("p_solver", "PCG")
-    p_preconditioner = fv_solution_setup.get("p_preconditioner", "DIC")
-    p_tolerance = fv_solution_setup.get("p_tolerance", 1e-6)
-    p_rel_tol = fv_solution_setup.get("p_rel_tol", 0)
-    u_solver = fv_solution_setup.get("U_solver", "smoothSolver")
-    u_smoother = fv_solution_setup.get("U_smoother", "symGaussSeidel")
-    u_tolerance = fv_solution_setup.get("U_tolerance", 1e-5)
-    u_rel_tol = fv_solution_setup.get("U_rel_tol", 0)
-    turb_solver = fv_solution_setup.get("turb_solver", "smoothSolver")
-    turb_smoother = fv_solution_setup.get("turb_smoother", "symGaussSeidel")
-    turb_tolerance = fv_solution_setup.get("turb_tolerance", 1e-5)
-    turb_rel_tol = fv_solution_setup.get("turb_rel_tol", 0)
+
+    p_setup = fv_solution_setup.get("p", {})
+    p_solver = p_setup.get("Solver", "PCG")
+    p_preconditioner = p_setup.get("Preconditioner", "DIC")
+    p_smoother = p_setup.get("Smoother", None)
+    p_tolerance = p_setup.get("Tolerance", 1e-6)
+    p_rel_tol = p_setup.get("RelTol", 0)
+
+    u_setup = fv_solution_setup.get("U", {})
+    u_solver = u_setup.get("Solver", "smoothSolver")
+    u_preconditioner = u_setup.get("Preconditioner", None)
+    u_smoother = u_setup.get("Smoother", "symGaussSeidel")
+    u_tolerance = u_setup.get("Tolerance", 1e-5)
+    u_rel_tol = u_setup.get("RelTol", 0)
+
+    turb_setup = fv_solution_setup.get("Turbulence", {})
+    turb_solver = turb_setup.get("Solver", "smoothSolver")
+    turb_preconditioner = turb_setup.get("Preconditioner", None)
+    turb_smoother = turb_setup.get("Smoother", "symGaussSeidel")
+    turb_tolerance = turb_setup.get("Tolerance", 1e-5)
+    turb_rel_tol = turb_setup.get("RelTol", 0)
+
+    re_thetat_setup = fv_solution_setup.get("ReThetat", {})
+    rethetat_solver = re_thetat_setup.get("Solver", "smoothSolver")
+    rethetat_preconditioner = re_thetat_setup.get("Preconditioner", None)
+    rethetat_smoother = re_thetat_setup.get("Smoother", "symGaussSeidel")
+    rethetat_tolerance = re_thetat_setup.get("Tolerance", 1e-8)
+    rethetat_rel_tol = re_thetat_setup.get("RelTol", 0.1)
+
+    gammaint_setup = fv_solution_setup.get("gammaInt", {})
+    gammaint_solver = gammaint_setup.get("Solver", "smoothSolver")
+    gammaint_preconditioner = gammaint_setup.get("Preconditioner", None)
+    gammaint_smoother = gammaint_setup.get("Smoother", "symGaussSeidel")
+    gammaint_tolerance = gammaint_setup.get("Tolerance", 1e-8)
+    gammaint_rel_tol = gammaint_setup.get("RelTol", 0.1)
+
     n_non_ortho_correctors = fv_solution_setup.get("n_non_ortho_correctors", 2)
-    relaxation_p = fv_solution_setup.get("relaxation_p", 0.3)
-    relaxation_U = fv_solution_setup.get("relaxation_U", 0.7)
-    relaxation_k = fv_solution_setup.get("relaxation_k", 0.7)
-    relaxation_omega = fv_solution_setup.get("relaxation_omega", 0.7)
-    relaxation_epsilon = fv_solution_setup.get("relaxation_epsilon", 0.7)
-    relaxation_nuTilda = fv_solution_setup.get("relaxation_nuTilda", 0.7)
+
+    relaxation_setup = fv_solution_setup.get("RelaxationFactors", {})
+    relaxation_p = relaxation_setup.get("p", 0.3)
+    relaxation_U = relaxation_setup.get("U", 0.7)
+    relaxation_k = relaxation_setup.get("k", 0.7)
+    relaxation_omega = relaxation_setup.get("omega", 0.7)
+    relaxation_epsilon = relaxation_setup.get("epsilon", 0.7)
+    relaxation_nuTilda = relaxation_setup.get("nuTilda", 0.7)
+    relaxation_reThetat = relaxation_setup.get("reThetat", 0.4)
+    relaxation_gammaInt = relaxation_setup.get("gammaInt", 0.4)
+
     cache = fv_solution_setup.get("cache", "grad(U);")
 
     content = generate_fv_solution_dict(
         p_solver=p_solver,
         p_preconditioner=p_preconditioner,
+        p_smoother=p_smoother,
         p_tolerance=p_tolerance,
         p_rel_tol=p_rel_tol,
         U_solver=u_solver,
+        U_preconditioner=u_preconditioner,
         U_smoother=u_smoother,
         U_tolerance=u_tolerance,
         U_rel_tol=u_rel_tol,
         turb_solver=turb_solver,
+        turb_preconditioner=turb_preconditioner,
         turb_smoother=turb_smoother,
         turb_tolerance=turb_tolerance,
         turb_rel_tol=turb_rel_tol,
@@ -170,63 +202,92 @@ def fv_solution_dict(setup: Settings, output_path: Path) -> None:
         relaxation_omega=relaxation_omega,
         relaxation_epsilon=relaxation_epsilon,
         relaxation_nuTilda=relaxation_nuTilda,
-        cache=cache
+        cache=cache,
+        rethetat_solver=rethetat_solver,
+        rethetat_preconditioner=rethetat_preconditioner,
+        rethetat_smoother=rethetat_smoother,
+        rethetat_tolerance=rethetat_tolerance,
+        rethetat_rel_tol=rethetat_rel_tol,
+        gammaint_solver=gammaint_solver,
+        gammaint_preconditioner=gammaint_preconditioner,
+        gammaint_smoother=gammaint_smoother,
+        gammaint_tolerance=gammaint_tolerance,
+        gammaint_rel_tol=gammaint_rel_tol,
+        relaxation_reThetat=relaxation_reThetat,
+        relaxation_gammaInt=relaxation_gammaInt,
     )
     with open(output_path, "w") as file:
         file.write(content)
 
 
+def build_solver_section(solver: str, preconditioner: str, smoother: str,
+                         tolerance: float, rel_tol: float) -> str:
+    """Build a solver section with appropriate smoother/preconditioner."""
+    section = f"    {{\n        solver          {solver};\n"
+    if preconditioner is not None:
+        section += f"        preconditioner  {preconditioner};\n"
+    if smoother is not None:
+        section += f"        smoother        {smoother};\n"
+    section += f"        tolerance       {tolerance};\n        relTol          {rel_tol};\n    }}"
+    return section
+
+
 def generate_fv_solution_dict(
-        p_solver: str = "PCG",
-        p_preconditioner: str = "DIC",
-        p_tolerance: float = 1e-6,
-        p_rel_tol: float = 0,
-        U_solver: str = "smoothSolver",
-        U_smoother: str = "symGaussSeidel",
-        U_tolerance: float = 1e-5,
-        U_rel_tol: float = 0,
-        turb_solver: str = "smoothSolver",
-        turb_smoother: str = "symGaussSeidel",
-        turb_tolerance: float = 1e-5,
-        turb_rel_tol: float = 0,
-        n_non_ortho_correctors: int = 2,
-        relaxation_p: float = 0.3,
-        relaxation_U: float = 0.7,
-        relaxation_k: float = 0.7,
-        relaxation_omega: float = 0.7,
-        relaxation_epsilon: float = 0.7,
-        relaxation_nuTilda: float = 0.7,
-        cache: str = "grad(U);"
+    p_solver: str = "PCG",
+    p_preconditioner: str = None,
+    p_smoother: str = None,
+    p_tolerance: float = 1e-6,
+    p_rel_tol: float = 0,
+    U_solver: str = "smoothSolver",
+    U_preconditioner: str = None,
+    U_smoother: str = "symGaussSeidel",
+    U_tolerance: float = 1e-5,
+    U_rel_tol: float = 0,
+    turb_solver: str = "smoothSolver",
+    turb_preconditioner: str = None,
+    turb_smoother: str = "symGaussSeidel",
+    turb_tolerance: float = 1e-5,
+    turb_rel_tol: float = 0,
+    rethetat_solver: str = "smoothSolver",
+    rethetat_preconditioner: str = None,
+    rethetat_smoother: str = "symGaussSeidel",
+    rethetat_tolerance: float = 1e-8,
+    rethetat_rel_tol: float = 0.1,
+    gammaint_solver: str = "smoothSolver",
+    gammaint_preconditioner: str = None,
+    gammaint_smoother: str = "symGaussSeidel",
+    gammaint_tolerance: float = 1e-8,
+    gammaint_rel_tol: float = 0.1,
+    n_non_ortho_correctors: int = 2,
+    relaxation_p: float = 0.3,
+    relaxation_U: float = 0.7,
+    relaxation_k: float = 0.7,
+    relaxation_omega: float = 0.7,
+    relaxation_epsilon: float = 0.7,
+    relaxation_nuTilda: float = 0.7,
+    relaxation_reThetat: float = 0.4,
+    relaxation_gammaInt: float = 0.4,
+    cache: str = "grad(U);",
 ) -> str:
     """
     Generate fvSolution file content suitable for an airfoil simulation with essential
-    parameters.
+    parameters, including ReThetat and gammaInt solver sections.
 
-    Args:
-        p_solver (str): Solver for pressure.
-        p_preconditioner (str): Preconditioner for pressure solver.
-        p_tolerance (float): Tolerance for pressure solver.
-        p_rel_tol (float): Relative tolerance for pressure solver.
-        U_solver (str): Solver for velocity.
-        U_smoother (str): Smoother for velocity solver.
-        U_tolerance (float): Tolerance for velocity solver.
-        U_rel_tol (float): Relative tolerance for velocity solver.
-        turb_solver (str): Solver for turbulence quantities.
-        turb_smoother (str): Smoother for turbulence solver.
-        turb_tolerance (float): Tolerance for turbulence solver.
-        turb_rel_tol (float): Relative tolerance for turbulence solver.
-        n_non_ortho_correctors (int): Number of non-orthogonal correctors.
-        relaxation_p (float): Relaxation factor for pressure.
-        relaxation_U (float): Relaxation factor for velocity.
-        relaxation_k (float): Relaxation factor for turbulent kinetic energy.
-        relaxation_omega (float): Relaxation factor for specific dissipation rate.
-        relaxation_epsilon (float): Relaxation factor for dissipation rate.
-        relaxation_nuTilda (float): Relaxation factor for turbulent viscosity.
-        cache (str): Cache settings.
-
-    Returns:
-        str: The filled fvSolution content.
+    Supports both 'smoother' and 'preconditioner' keywords - only includes the one
+    that is provided (not None).
     """
+
+    p_section = build_solver_section(p_solver, p_preconditioner, p_smoother,
+                                     p_tolerance, p_rel_tol)
+    U_section = build_solver_section(U_solver, U_preconditioner, U_smoother,
+                                     U_tolerance, U_rel_tol)
+    turb_section = build_solver_section(turb_solver, turb_preconditioner, turb_smoother,
+                                        turb_tolerance, turb_rel_tol)
+    rethetat_section = build_solver_section(rethetat_solver, rethetat_preconditioner,
+                                            rethetat_smoother, rethetat_tolerance, rethetat_rel_tol)
+    gammaint_section = build_solver_section(gammaint_solver, gammaint_preconditioner,
+                                            gammaint_smoother, gammaint_tolerance, gammaint_rel_tol)
+
     content = f"""FoamFile
 {{
     version     2.0;
@@ -238,26 +299,15 @@ def generate_fv_solution_dict(
 solvers
 {{
     p
-    {{
-        solver          {p_solver};
-        preconditioner  {p_preconditioner};
-        tolerance       {p_tolerance};
-        relTol          {p_rel_tol};
-    }}
+{p_section}
     U
-    {{
-        solver          {U_solver};
-        smoother        {U_smoother};
-        tolerance       {U_tolerance};
-        relTol          {U_rel_tol};
-    }}
+{U_section}
     "(k|omega|epsilon|nuTilda)"
-    {{
-        solver          {turb_solver};
-        smoother        {turb_smoother};
-        tolerance       {turb_tolerance};
-        relTol          {turb_rel_tol};
-    }}
+{turb_section}
+    ReThetat
+{rethetat_section}
+    gammaInt
+{gammaint_section}
 }}
 
 SIMPLE
@@ -278,6 +328,8 @@ relaxationFactors
         omega           {relaxation_omega};
         epsilon         {relaxation_epsilon};
         nuTilda         {relaxation_nuTilda};
+        ReThetat       {relaxation_reThetat};
+        gammaInt       {relaxation_gammaInt};
     }}
 }}
 
@@ -296,33 +348,49 @@ def fv_schemes_dict(setup: Settings, output_path: Path) -> None:
         setup (Settings): The simulation settings.
         output_path (Path): The path to save the fvSchemes file.
     """
-    fv_schemes_setup = setup.simulation_settings.get("Schemes", {})
-    time_scheme = fv_schemes_setup.get("TimeScheme", "steadyState")
-    grad_scheme = fv_schemes_setup.get("GradScheme", "Gauss linear")
-    div_scheme_U = fv_schemes_setup.get("DivScheme_U", "Gauss upwind")
-    div_scheme_phi_k = fv_schemes_setup.get("DivScheme_phi_k", "Gauss upwind")
-    div_scheme_phi_epsilon = fv_schemes_setup.get(
-        "DivScheme_phi_epsilon", "Gauss upwind")
-    div_scheme_phi_omega = fv_schemes_setup.get("DivScheme_phi_omega", "Gauss upwind")
-    div_scheme_phi_nuTilda = fv_schemes_setup.get(
-        "DivScheme_phi_nuTilda", "Gauss upwind")
-    laplacian_scheme = fv_schemes_setup.get("LaplacianScheme", "Gauss linear corrected")
-    interpolation_scheme = fv_schemes_setup.get("InterpolationScheme", "linear")
-    sn_grad_scheme = fv_schemes_setup.get("SnGradScheme", "corrected")
-    wall_dist_scheme = fv_schemes_setup.get("WallDistScheme", "meshWave")
+    fv_schemes_setup = setup.simulation_settings.get("FvSchemes", {})
+
+    time_schemes = fv_schemes_setup.get("ddtSchemes", {})
+    time_scheme_default = time_schemes.get("Default", "steadyState")
+
+    div_schemes = fv_schemes_setup.get("DivSchemes", {})
+    div_scheme_default = div_schemes.get("Default", "none")
+    div_scheme_U = div_schemes.get("DivPhiU", "Gauss upwind")
+    div_scheme_phi_k = div_schemes.get("DivPhiK", "Gauss upwind")
+    div_scheme_phi_epsilon = div_schemes.get(
+        "DivPhiEpsilon", "Gauss upwind")
+    div_scheme_phi_omega = div_schemes.get("DivPhiOmega", "Gauss upwind")
+    div_scheme_phi_nuTilda = div_schemes.get(
+        "DivPhiNuTilda", "Gauss upwind")
+
+    grad_schemes = fv_schemes_setup.get("GradSchemes", {})
+    grad_scheme_default = grad_schemes.get("Default", "Gauss linear")
+
+    laplacian_schemes = fv_schemes_setup.get("LaplacianSchemes", {})
+    laplacian_scheme_default = laplacian_schemes.get("Default", "Gauss linear corrected")
+
+    interpolation_schemes = fv_schemes_setup.get("InterpolationSchemes", {})
+    interpolation_scheme_default = interpolation_schemes.get("Default", "linear")
+
+    sn_grad_schemes = fv_schemes_setup.get("SnGradSchemes", {})
+    sn_grad_scheme_default = sn_grad_schemes.get("Default", "corrected")
+
+    wall_dist_schemes = fv_schemes_setup.get("WallDistSchemes", {})
+    wall_dist_scheme_default = wall_dist_schemes.get("Default", "meshWave")
 
     content = generate_fv_schemes_dict(
-        time_scheme=time_scheme,
-        grad_scheme=grad_scheme,
+        time_scheme=time_scheme_default,
+        grad_scheme=grad_scheme_default,
+        div_scheme_default=div_scheme_default,
         div_scheme_U=div_scheme_U,
         div_scheme_phi_k=div_scheme_phi_k,
         div_scheme_phi_epsilon=div_scheme_phi_epsilon,
         div_scheme_phi_omega=div_scheme_phi_omega,
         div_scheme_phi_nuTilda=div_scheme_phi_nuTilda,
-        laplacian_scheme=laplacian_scheme,
-        interpolation_scheme=interpolation_scheme,
-        sn_grad_scheme=sn_grad_scheme,
-        wall_dist_scheme=wall_dist_scheme
+        laplacian_scheme=laplacian_scheme_default,
+        interpolation_scheme=interpolation_scheme_default,
+        sn_grad_scheme=sn_grad_scheme_default,
+        wall_dist_scheme=wall_dist_scheme_default
     )
     with open(output_path, "w") as file:
         file.write(content)
@@ -331,11 +399,15 @@ def fv_schemes_dict(setup: Settings, output_path: Path) -> None:
 def generate_fv_schemes_dict(
     time_scheme: str = "steadyState",
     grad_scheme: str = "Gauss linear",
+    div_scheme_default: str = "none",
     div_scheme_U: str = "Gauss upwind",
     div_scheme_phi_k: str = "Gauss upwind",
     div_scheme_phi_epsilon: str = "Gauss upwind",
     div_scheme_phi_omega: str = "Gauss upwind",
     div_scheme_phi_nuTilda: str = "Gauss upwind",
+    div_scheme_phi_gammaInt: str = "Gauss upwind",
+    div_scheme_phi_reThetat: str = "Gauss upwind",
+    div_scheme_nu_eff: str = "Gauss linear",
     laplacian_scheme: str = "Gauss linear corrected",
     interpolation_scheme: str = "linear",
     sn_grad_scheme: str = "corrected",
@@ -380,13 +452,15 @@ gradSchemes
 
 divSchemes
 {{
-    default         none;
+    default         {div_scheme_default};
     div(phi,U)      {div_scheme_U};
     div(phi,k)      {div_scheme_phi_k};
     div(phi,epsilon) {div_scheme_phi_epsilon};
     div(phi,omega)   {div_scheme_phi_omega};
     div(phi,nuTilda) {div_scheme_phi_nuTilda};
-    div((nuEff*dev2(T(grad(U))))) Gauss linear;
+    div(phi,gammaInt) {div_scheme_phi_gammaInt};
+    div(phi,ReThetat) {div_scheme_phi_reThetat};
+    div((nuEff*dev2(T(grad(U))))) {div_scheme_nu_eff};
 }}
 
 laplacianSchemes
@@ -489,53 +563,45 @@ def surface_features_dict(setup: Settings, output_path: Path) -> None:
         file.write(content)
 
 
-def generate_surface_features_dict(
-        stl_file: str = "airfoil.stl",
-        included_angle: int = 150,
-        write_obj: str = "yes"
-) -> str:
-    """
-    Generate surfaceFeaturesDict file content (OpenFOAM v10+ style).
+def surface_feature_extract_dict(setup: Settings, output_path: Path) -> None:
+    """Generate surfaceFeatureExtractDict for extracting sharp edges (LE/TE)."""
+    snappy = setup.mesh_settings.get("SnappyHexMesh", {})
+    included_angle = snappy.get("FeatureIncludedAngle", 150)
 
-    Args:
-        stl_file (str): The STL file name.
-        included_angle (int): The included angle.
-        write_obj (str): Whether to write OBJ file.
-
-    Returns:
-        str: The filled surfaceFeaturesDict content.
-    """
-    return f"""FoamFile
+    content = f"""FoamFile
 {{
     version     2.0;
     format      ascii;
     class       dictionary;
-    object      surfaceFeaturesDict;
+    object      surfaceFeatureExtractDict;
 }}
 
-geometry
+airfoil.stl
 {{
-    surfaces
-    (
-        "{stl_file}"
-    );
-    includedAngle   {included_angle};
-}}
+    extractionMethod    extractFromSurface;
 
-extractFeatures
-{{
-    surfaces
-    (
-        "{stl_file}"
-    );
-    includedAngle   {included_angle};
-    "{stl_file}"
+    extractFromSurfaceCoeffs
     {{
-        extractionMethod    extractFromSurface;
-        writeObj {write_obj};
+        includedAngle   {included_angle};
     }}
+
+    subsetFeatures
+    {{
+        nonManifoldEdges    no;
+        openEdges           yes;
+    }}
+
+    trimFeatures
+    {{
+        minElem 5;
+    }}
+
+    writeObj            yes;
+    writeVTK            no;
 }}
 """
+    with open(output_path, "w") as f:
+        f.write(content)
 
 
 def add_force_coeffs_dict_from_bc(
@@ -597,3 +663,108 @@ functions
 }}
 """
         )
+
+
+def extrude_mesh_dict(setup: Settings, output_path: Path) -> None:
+    """
+    Fill the extrudeMeshDict file for OpenFOAM simulation based on the provided settings.
+    Thickness is computed from the bounding box z-span.
+
+    Args:
+        setup (Settings): The simulation settings.
+        output_path (Path): The path to save the extrudeMeshDict file.
+    """
+    extrude_setup = setup.simulation_settings.get("ExtrudeMesh", {})
+    bbox = setup.mesh_settings.get("BoundingBox", {})
+
+    # Calculate thickness from bounding box
+    z_min = float(bbox.get("ZMin", -0.5))
+    z_max = float(bbox.get("ZMax", 0.5))
+    thickness = abs(z_max - z_min)
+
+    # Required/general entries
+    construct_from = extrude_setup.get("ConstructFrom", "patch")
+    source_case = extrude_setup.get("SourceCase", ".")
+    source_patches = extrude_setup.get("SourcePatches", ["front"])
+    flip_normals = extrude_setup.get("FlipNormals", False)
+    exposed_patch_name = extrude_setup.get("ExposedPatchName", "back")
+
+    # Extrusion controls
+    extrude_model = extrude_setup.get("ExtrudeModel", "linearNormal")
+    n_layers = extrude_setup.get("nLayers", 1)
+    expansion_ratio = extrude_setup.get("ExpansionRatio", 1.0)
+    # Override thickness from setup if explicitly provided
+    thickness = extrude_setup.get("Thickness", thickness)
+
+    # Patch/face handling
+    preserve_patches = extrude_setup.get("PreservePatches", False)
+    merge_patch_faces = extrude_setup.get("MergePatchFaces", False)
+    merge_faces = extrude_setup.get("MergeFaces", False)
+
+    content = generate_extrude_mesh_dict(
+        construct_from=construct_from,
+        source_case=source_case,
+        source_patches=source_patches,
+        flip_normals=flip_normals,
+        exposed_patch_name=exposed_patch_name,
+        extrude_model=extrude_model,
+        n_layers=n_layers,
+        expansion_ratio=expansion_ratio,
+        thickness=thickness,
+        preserve_patches=preserve_patches,
+        merge_patch_faces=merge_patch_faces,
+        merge_faces=merge_faces,
+    )
+    with open(output_path, "w") as file:
+        file.write(content)
+
+
+def generate_extrude_mesh_dict(
+    construct_from: str = "patch",
+    source_case: str = ".",
+    source_patches: list[str] | None = None,
+    flip_normals: bool = False,
+    exposed_patch_name: str = "back",
+    extrude_model: str = "linearNormal",
+    n_layers: int = 1,
+    expansion_ratio: float = 1.0,
+    thickness: float = 1.0,
+    preserve_patches: bool = False,
+    merge_patch_faces: bool = False,
+    merge_faces: bool = False,
+) -> str:
+    """
+    Generate extrudeMeshDict file content (OpenFOAM 2406-compatible).
+    """
+    if source_patches is None:
+        source_patches = ["front"]
+
+    patches_str = " ".join(f'"{p}"' for p in source_patches)
+
+    return f"""FoamFile
+{{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    object      extrudeMeshDict;
+}}
+
+constructFrom      {construct_from};
+sourceCase         "{source_case}";
+sourcePatches      ({patches_str});
+flipNormals        {"true" if flip_normals else "false"};
+exposedPatchName   {exposed_patch_name};
+
+extrudeModel       {extrude_model};
+nLayers            {n_layers};
+expansionRatio     {expansion_ratio};
+
+linearNormalCoeffs
+{{
+    thickness       {thickness};
+}}
+
+preservePatches    {"true" if preserve_patches else "false"};
+mergePatchFaces    {"true" if merge_patch_faces else "false"};
+mergeFaces         {"true" if merge_faces else "false"};
+"""

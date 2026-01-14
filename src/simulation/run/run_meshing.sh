@@ -36,22 +36,20 @@ run_cmd() {
 
 if [ "${mesher}" = "cfMesh" ]; then
     
-    # This workflow uses a single call to cartesianMesh.
-    # The python script prepares a composite STL file defining the whole domain.
     echo "Running cfMesh (cartesian2DMesh) with composite STL..."
     run_cmd "cartesian2DMesh" "cartesian2DMesh.log"
 
-    # The extrudeMesh step is not needed as the composite STL is already 3D.
-
 else
     echo "Running SnappyHexMesh pipeline ..."
-    if [ -f "system/surfaceFeaturesDict" ]; then
-        echo "surfaceFeaturesDict found. Running surfaceFeatures ..."
-        run_cmd "surfaceFeatures" "surfaceFeatures.log"
-    fi
-
+    
     echo "Running blockMesh ..."
     run_cmd "blockMesh" "blockMesh.log"
+
+    # Extract features BEFORE decomposition
+    if [ -f "system/surfaceFeatureExtractDict" ]; then
+        echo "surfaceFeatureExtractDict found. Running surfaceFeatureExtract ..."
+        run_cmd "surfaceFeatureExtract" "surfaceFeatureExtract.log"
+    fi
 
     if [ "$n_procs" -le 1 ]; then
         echo "Single processor. Running snappyHexMesh ..."
@@ -59,11 +57,27 @@ else
     else
         echo "Decomposing for parallel snappyHexMesh ..."
         run_cmd "decomposePar -force" "decomposePar.log"
+        
         echo "Running snappyHexMesh in parallel ..."
         run_cmd "mpirun -np $n_procs snappyHexMesh -parallel -overwrite" "snappyHexMesh.log"
+        
         echo "Reconstructing ..."
-        run_cmd "reconstructPar -constant" "reconstructPar.log"
+        run_cmd "reconstructParMesh -constant" "reconstructPar.log"
         rm -rf processor*
+    fi
+    
+    echo "Backing up polyMesh before extrusion ..."
+    cp -r constant/polyMesh constant/polyMesh_backup
+    
+    echo "Extruding 2D patch to quasi-2D 3D mesh (1 layer) ..."
+    run_cmd "extrudeMesh" "extrudeMesh.log"
+    
+    # Move extruded mesh into place
+    if [ -d "constant/region0/polyMesh" ]; then
+        rm -rf constant/polyMesh
+        mv constant/region0/polyMesh constant/
+        rmdir constant/region0 2>/dev/null || true
+        echo "Moved extruded mesh: constant/region0/polyMesh -> constant/polyMesh"
     fi
 fi
 

@@ -2,7 +2,7 @@
 BlockMesh generation utilities for OpenFOAM.
 """
 from pathlib import Path
-from airfoil.airfoil import Airfoil
+from templates.airfoil_template import Airfoil
 from templates.initial_settings_template import Settings
 
 
@@ -132,7 +132,7 @@ boundary
     }}
     front
     {{
-        type patch;
+        type symmetryPlane;
         faces
         (
             (4 5 6 7)
@@ -140,7 +140,7 @@ boundary
     }}
     back
     {{
-        type patch;
+        type symmetryPlane;
         faces
         (
             (0 3 2 1)

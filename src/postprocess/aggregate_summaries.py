@@ -6,7 +6,8 @@ from utils.utilities import combine_postprocessing_summaries
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="Aggregate all postprocessing_summary.csv files from subdirectories into a single combined CSV."
+        description='Aggregate all postprocessing_summary.csv files from subdirectories'
+        'into a single combined CSV.'
     )
     parser.add_argument(
         '--working-path',
@@ -18,7 +19,8 @@ def parse_arguments():
         '--output',
         type=Path,
         default=None,
-        help='Output CSV file path (default: <working_path>/combined_postprocessing_summary.csv)'
+        help='Output CSV file path (default:'
+        '<working_path>/combined_postprocessing_summary.csv)'
     )
     return parser.parse_args()
 

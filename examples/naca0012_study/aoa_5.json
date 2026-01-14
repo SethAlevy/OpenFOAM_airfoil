@@ -2,83 +2,118 @@
     "Airfoil": {
         "GenerateNACA": true,
         "DownloadUIUC": false,
-        "Designation": "NACA4415",
+        "Designation": "NACA0012",
         "LoadFromFile": false,
         "LoadFilePath": "",
-        "Chord": 0.6,
-        "Resolution": 3000,
-        "AngleOfAttack": 15.0
+        "Chord": 0.28,
+        "Resolution": 4000,
+        "AngleOfAttack": 5.0
     },
     "Mesh": {
         "Mesher": "cfMesh",
         "BoundingBox": {
-            "InletDistance": 1.5,
-            "OutletDistance": 5.0,
-            "TopDistance": 1.5,
-            "BottomDistance": 1.5,
-            "ZMin": -0.01,
-            "ZMax": 0.01
+            "InletDistance": 10.0,
+            "OutletDistance": 20.0,
+            "TopDistance": 7.0,
+            "BottomDistance": 7.0,
+            "ZMin": -0.0005,
+            "ZMax": 0.0005
         },
         "CfMesh": {
-            "MaxCellSize": 0.05,
-            "LocalRefinement": {
+            "MaxCellSize": 0.036,
+            "LocalRefinement": { 
                 "airfoil": {
-                    "Level": 5,
-                    "Thickness": 0.15
+                    "CellSize": 0.00025,
+                    "Thickness": 0.0004
                 }
             },
             "BoundaryLayers": {
                 "airfoil": { 
-                    "NLayers": 6,
+                    "NLayers": 14,
                     "ThicknessRatio": 1.1,
-                    "MaxFirstLayerThickness": 0.00035,
+                    "MaxFirstLayerThickness": 0.000005,
                     "AllowedDiscontinuity": 1
                 }
             },
             "ObjectRefinements": {
-                "airfoilBox": {
+                "outerShell" : {
                     "Type": "box",
-                    "XMin": -1.0,
-                    "XMax": 3.0,
+                    "XMin": -0.8,
+                    "XMax": 2.5,
                     "YMin": -1.0,
                     "YMax": 1.0,
-                    "CellSize": 0.01
+                    "CellSize": 0.009
+                },
+                "nearShell": {
+                    "Type": "box",
+                    "XMin": -0.15,
+                    "XMax": 1.5,
+                    "YMin": -0.4,
+                    "YMax": 0.4,
+                    "CellSize": 0.00225
+                },
+                "NearField": {
+                    "Type": "box",
+                    "XMin": -0.05,
+                    "XMax": 0.4,
+                    "YMin": -0.08,
+                    "YMax": 0.08,
+                    "CellSize": 0.00075
                 }
             }
         }
     },
 
     "Simulation": {
-        "CaseName": "airfoilCase",
         "PrintLogs": false,
         "ControlDict": {
             "Solver": "simpleFoam",
             "StartFrom": "startTime",
             "StartTime": 0,
-            "EndTime": 2500,
+            "EndTime": 3000,
             "DeltaT": 1,
             "WriteControl": "timeStep",
             "WriteInterval": 500,
             "PurgingInterval": 0
         },
         "FvSolution": {
-            "k": {
+            "p": {
+                "Solver": "GAMG",
+                "Smoother": "DIC",
+                "Tolerance": 1e-08,
+                "RelTol": 0.05
+            },
+            "Turbulence": {
                 "Solver": "smoothSolver",
                 "Smoother": "GaussSeidel",
                 "Tolerance": 1e-05,
                 "RelTol": 0.1
             },
-            "Omega": {
+            "gammaInt": {
                 "Solver": "smoothSolver",
-                "Smoother": "GaussSeidel",
+                "Smoother": "symGaussSeidel",
                 "Tolerance": 1e-05,
-                "RelTol": 0.1
+                "RelTol": 0.2
+            },
+            "ReThetat": {
+                "Solver": "smoothSolver",
+                "Smoother": "symGaussSeidel",
+                "Tolerance": 1e-06,
+                "RelTol": 0.3
+            },
+            "RelaxationFactors": {
+                "p": 0.3,
+                "U": 0.6,
+                "k": 0.6,
+                "omega": 0.6,
+                "reThetat": 0.3,
+                "gammaInt": 0.2
             }
         },
         "FvSchemes": {
             "DivSchemes": {
                 "Default": "Gauss upwind",
-                "DivPhiU": "Gauss upwind",
+                "DivPhiU": "bounded Gauss linearUpwind grad(U)",
                 "DivPhiK": "Gauss upwind",
                 "DivPhiEpsilon": "Gauss upwind",
                 "DivPhiOmega": "Gauss upwind"
@@ -100,43 +135,25 @@
             "Method": "scotch",
             "NumberOfSubdomains": 4
         },
-        "SurfaceFeatureExtract": {
-            "IncludedAngle": 150
-        },
         "TurbulenceProperties": {
             "Turbulence": "on",
             "Model": "kOmegaSST",
-            "Kappa": 0.41,
-            "E": 9.8,
-            "TurbulenceIntensity": 0.01,
-            "TurbulenceLengthScale": 0.08,
-            "kOmegaSST": {
-                "betaStar": 0.09,
-                "a1": 0.31,
-                "c1": 10.0,
-                "c2": 1.0,
-                "alphaK1": 0.85,
-                "alphaK2": 1.0,
-                "alphaOmega1": 0.5,
-                "alphaOmega2": 0.856,
-                "beta1": 0.075,
-                "beta2": 0.0828
+            "TurbulenceIntensity": 0.0003,
+            "TurbulenceLengthScaleChord": 0.015,
+            "kOmegaSSTLM": {
+                "Cmu": 0.09
             },
-            "kEpsilon": {
-                "Cmu": 0.09,
-                "C1Epsilon": 1.44,
-                "C2Epsilon": 1.92,
-                "SigmaK": 1.0,
-                "SigmaEpsilon": 1.3
+            "kOmegaSST": {
+                "Cmu": 0.09
             }
         },
         "Fluid": {
-            "KinematicViscosity": 1.5e-05,
+            "KinematicViscosity": 0.25e-05,
             "Density": 1.225
         },
         "BoundaryConditions": {
             "Pressure": 0.0,
-            "ReynoldsNumber": 1000000,
+            "ReynoldsNumber": 6000000,
             "InletPatchName": "inlet",
             "OutletPatchName": "outlet",
             "LowerWallPatchName": "lowerWall",

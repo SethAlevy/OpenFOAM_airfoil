@@ -65,6 +65,8 @@ class NACA4(BaseAirfoil):
         Returns:
             np.ndarray: y-coordinates of the mean camber line.
         """
+        if m == 0 or p == 0:
+            return np.zeros_like(x)
         return np.where(
             x < p,
             m / (p ** 2) * (2 * p * x - x ** 2),
@@ -83,6 +85,8 @@ class NACA4(BaseAirfoil):
         Returns:
             np.ndarray: derivative dyc/dx of the mean camber line.
         """
+        if m == 0 or p == 0:
+            return np.zeros_like(x)
         return np.where(
             x < p,
             (2 * m / (p ** 2)) * (p - x),
@@ -456,7 +460,10 @@ class UIUCAirfoil(BaseAirfoil):
         y = data[:, 1]
         return np.array([x, y])
 
-    def _extract_upper_lower_lines(self, coords: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    def _extract_upper_lower_lines(
+            self,
+            coords: np.ndarray
+    ) -> tuple[np.ndarray, np.ndarray]:
         """
         Convert the UIUC dat file to get upper and lower surface coordinates.
 

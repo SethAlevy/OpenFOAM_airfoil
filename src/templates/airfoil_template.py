@@ -76,7 +76,7 @@ class Airfoil(ABC):
         pass
 
     @abstractmethod
-    def to_stl(self, file_path: Path, thickness: float, num_points: int = 100) -> None:
+    def to_stl(self, output_path: Path, thickness: float, dimension: int) -> None:
         """
         Export airfoil geometry to STL format. It can be 2D or 3D by selecting the 
         dimension parameter (in general depends on the mesh requirements).

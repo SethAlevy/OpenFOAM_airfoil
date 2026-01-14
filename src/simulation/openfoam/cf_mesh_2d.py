@@ -1,6 +1,6 @@
 from pathlib import Path
 import numpy as np
-from airfoil.airfoil import Airfoil
+from templates.airfoil_template import Airfoil
 from templates.initial_settings_template import Settings
 from simulation.openfoam.block_mesh import get_bounding_box
 from utils.utilities import export_domain_to_fms, create_stl_bounding_box
@@ -12,7 +12,7 @@ def local_refinement(refinement_dict: dict) -> str:
 
     Args:
         refinement_dict (dict): Dictionary with patch names as keys and refinement
-            settings as values. Each value should be a dict with level and thickness.
+            settings as values. Each should be a dict with level/cellSize and thickness.
 
     Returns:
         str: Containing the localRefinement section.
@@ -22,10 +22,17 @@ def local_refinement(refinement_dict: dict) -> str:
 
     refinement_entries = []
     for patch_name, settings in refinement_dict.items():
-        level = settings.get("Level", 0)
         thickness = settings.get("Thickness", 0.05)
-
-        entry = f"""    {patch_name}
+        if "CellSize" in settings:
+            cell_size = settings["CellSize"]
+            entry = f"""    {patch_name}
+    {{
+        cellSize {cell_size};
+        refinementThickness {thickness};
+    }}"""
+        else:
+            level = settings.get("Level", 0)
+            entry = f"""    {patch_name}
     {{
         additionalRefinementLevels {level};
         refinementThickness {thickness};
@@ -75,7 +82,7 @@ def boundary_layers(layers_dict: dict) -> str:
 
     layer_content = "\n\n".join(layer_entries)
 
-    return f"""// Boundary layer settings
+    return f"""
 boundaryLayers
 {{
     patchBoundaryLayers
@@ -167,7 +174,7 @@ def object_refinements(airfoil: Airfoil, refinement_dict: dict) -> str:
     """
     if not refinement_dict:
         return ""
-    
+
     objects_dicts = ""
     for key in refinement_dict.keys():
         if refinement_dict[key]["Type"] == "sphere":
@@ -209,7 +216,6 @@ def object_refinements(airfoil: Airfoil, refinement_dict: dict) -> str:
     return f"""
 objectRefinements
 {{
-    // Object refinement settings can be added here
 {objects_dicts}
 }}
 """
@@ -266,9 +272,9 @@ surfaceFile         "constant/triSurface/domain.fms";
 maxCellSize         {max_cell_size * 0.99999};
 locationInMesh      ({location_in_mesh[0]} {location_in_mesh[1]});
 
+{object_section}
 {refinement_section}
 {layers_section}
-{object_section}
 """
 
 
@@ -291,7 +297,7 @@ def create_stl_domain(
         raise FileNotFoundError(f"Airfoil STL not found at {airfoil_stl_path}")
 
     stl_files_to_combine = [airfoil_stl_path] + [
-        tri_surface_dir / f"{name}.stl" 
+        tri_surface_dir / f"{name}.stl"
         for name in edge_patch_names.values()
     ]
 

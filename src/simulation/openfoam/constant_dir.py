@@ -117,7 +117,7 @@ def turbulence_properties_dict(setup: Settings, output_path: Path) -> None:
         setup (Settings): The simulation settings.
         output_path (Path): The path to save the turbulenceProperties file.
     """
-    turbulence_settings = setup.simulation_settings.get("Turbulence", {})
+    turbulence_settings = setup.simulation_settings.get("TurbulenceProperties", {})
     simulation_type = turbulence_settings.get("SimulationType", "RAS")
     turbulence = turbulence_settings.get("Turbulence", "on")
     print_coeffs = turbulence_settings.get("PrintCoeffs", "on")

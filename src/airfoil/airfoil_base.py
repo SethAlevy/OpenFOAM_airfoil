@@ -247,7 +247,7 @@ class BaseAirfoil(Airfoil):
             dimension: int = 3
     ) -> None:
         """
-        Export airfoil geometry to STL format. It can be 2D or 3D by selecting the 
+        Export airfoil geometry to STL format. It can be 2D or 3D by selecting the
         dimension parameter (in general depends on the mesh requirements).
 
         Args:
@@ -264,7 +264,7 @@ class BaseAirfoil(Airfoil):
 
     def airfoil_details(self):
         """
-        Simple log with the airfoil details. 
+        Simple log with the airfoil details.
         """
         SimpleLogger.log(
             f"Airfoil: {getattr(self, 'designation', getattr(self, 'name', ''))}, "

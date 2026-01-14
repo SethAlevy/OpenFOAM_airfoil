@@ -4,6 +4,16 @@ from templates.initial_settings_template import Settings
 import utils.utilities as ut
 from utils.logger import SimpleLogger
 import csv
+from templates.boundary_conditions.boundary_files import (
+    U_bc,
+    p_bc,
+    k_bc,
+    omega_bc,
+    epsilon_bc,
+    nut_bc,
+    gammaInt_bc,
+    retheta_bc
+)
 
 
 class BoundaryConditions:
@@ -123,9 +133,9 @@ class BoundaryConditions:
             self.turbulence_setup["TurbulenceIntensity"] = turbulence_intensity
         if turbulence_length_scale is None:
             self._turbulence_length_scale = self.turbulence_setup.get(
-                "TurbulenceLengthScale", None)
+                "TurbulenceLengthScaleChord", None)
         else:
-            self.turbulence_setup["TurbulenceLengthScale"] = turbulence_length_scale
+            self.turbulence_setup["TurbulenceLengthScaleChord"] = turbulence_length_scale
 
         if chord_length is None:
             chord_length = setup.airfoil_settings.get("Chord", None)
@@ -298,99 +308,19 @@ class BoundaryConditions:
         else:
             self._mach_number = None
 
-    def velocity_bc(
-            self,
-            inlet_patch: str = None,
-            outlet_patch: str = None,
-            lower_wall_patch: str = None,
-            upper_wall_patch: str = None,
-            front_patch: str = None,
-            back_patch: str = None,
-            airfoil_patch: str = None
-    ) -> str:
+    def velocity_bc(self) -> str:
         """
-        Generate the formatted string for the '0/U' boundary condition file with custom
-        patch names and defined velocity compatible with OpenFOAM. To use custom
-        values use set_velocity() method.
-
-        Args:
-            inlet_patch (str): Name of the inlet patch.
-            outlet_patch (str): Name of the outlet patch.
-            lower_wall_patch (str): Name of the lower wall patch.
-            upper_wall_patch (str): Name of the upper wall patch.
-            front_patch (str): Name of the front patch.
-            back_patch (str): Name of the back patch.
-            airfoil_patch (str): Name of the airfoil patch.
-
-        Returns:
-            str: Formatted string for the '0/U' boundary condition file.
+        Generate the formatted string for the '0/U' boundary condition file.
         """
         velocity = self.velocity
         if isinstance(velocity, (list, tuple, np.ndarray)):
             velocity_str = " ".join(str(v) for v in velocity)
         else:
             velocity_str = f"{velocity} 0 0"
-
-        if inlet_patch is None:
-            inlet_patch = self.bc_setup.get("InletPatch", "inlet")
-        if outlet_patch is None:
-            outlet_patch = self.bc_setup.get("OutletPatch", "outlet")
-        if lower_wall_patch is None:
-            lower_wall_patch = self.bc_setup.get("LowerWallPatch", "lowerWall")
-        if upper_wall_patch is None:
-            upper_wall_patch = self.bc_setup.get("UpperWallPatch", "upperWall")
-        if front_patch is None:
-            front_patch = self.bc_setup.get("FrontPatch", "front")
-        if back_patch is None:
-            back_patch = self.bc_setup.get("BackPatch", "back")
-        if airfoil_patch is None:
-            airfoil_patch = self.bc_setup.get("AirfoilPatch", "airfoil")
-
-        return f"""FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       volVectorField;
-    object      U;
-}}
-
-dimensions      [0 1 -1 0 0 0 0];
-
-internalField   uniform ({velocity_str});
-
-boundaryField
-{{
-    {inlet_patch}
-    {{
-        type            fixedValue;
-        value           uniform ({velocity_str});
-    }}
-    {outlet_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {lower_wall_patch}
-    {{
-        type            zeroGradient;  // or noSlip if this is a wall
-    }}
-    {upper_wall_patch}
-    {{
-        type            zeroGradient;  // or noSlip if this is a wall
-    }}
-    {front_patch}
-    {{
-        type            symmetryPlane;
-    }}
-    {back_patch}
-    {{
-        type            symmetryPlane;
-    }}
-    {airfoil_patch}
-    {{
-        type            noSlip;
-    }}
-}}
-"""
+        return U_bc(
+            velocity_str=velocity_str,
+            setup=self.bc_setup
+        )
 
     def to_absolute_pressure(self) -> None:
         """
@@ -419,47 +349,11 @@ boundaryField
         self._kinematic_pressure = True
 
     def pressure_bc(
-            self,
-            inlet_patch: str = None,
-            outlet_patch: str = None,
-            lower_wall_patch: str = None,
-            upper_wall_patch: str = None,
-            front_patch: str = None,
-            back_patch: str = None,
-            airfoil_patch: str = None
+        self,
     ) -> str:
         """
-        Generate the formatted string for the '0/p' boundary condition file with custom
-        patch names and defined pressure compatible with OpenFOAM. To use custom
-        values use set_pressure() method.
-
-        Args:
-            inlet_patch (str): Name of the inlet patch.
-            outlet_patch (str): Name of the outlet patch.
-            lower_wall_patch (str): Name of the lower wall patch.
-            upper_wall_patch (str): Name of the upper wall patch.
-            front_patch (str): Name of the front patch.
-            back_patch (str): Name of the back patch.
-            airfoil_patch (str): Name of the airfoil patch.
-
-        Returns:
-            str: Formatted string for the '0/p' boundary condition file.
+        Generate the formatted string for the '0/p' boundary condition file.
         """
-        if inlet_patch is None:
-            inlet_patch = self.bc_setup.get("InletPatch", "inlet")
-        if outlet_patch is None:
-            outlet_patch = self.bc_setup.get("OutletPatch", "outlet")
-        if lower_wall_patch is None:
-            lower_wall_patch = self.bc_setup.get("LowerWallPatch", "lowerWall")
-        if upper_wall_patch is None:
-            upper_wall_patch = self.bc_setup.get("UpperWallPatch", "upperWall")
-        if front_patch is None:
-            front_patch = self.bc_setup.get("FrontPatch", "front")
-        if back_patch is None:
-            back_patch = self.bc_setup.get("BackPatch", "back")
-        if airfoil_patch is None:
-            airfoil_patch = self.bc_setup.get("AirfoilPatch", "airfoil")
-
         if self._kinematic_pressure:
             pressure_value = self.pressure
         else:
@@ -469,81 +363,16 @@ boundaryField
             )
             pressure_value = self.pressure / self.density
 
-        return f"""FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       volScalarField;
-    object      p;
-}}
-
-dimensions      [0 2 -2 0 0 0 0];
-
-internalField   uniform {pressure_value};
-
-boundaryField
-{{
-    {inlet_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {outlet_patch}
-    {{
-        type            fixedValue;
-        value           uniform {pressure_value};
-    }}
-    {lower_wall_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {upper_wall_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {front_patch}
-    {{
-        type            symmetryPlane;
-    }}
-    {back_patch}
-    {{
-        type            symmetryPlane;
-    }}
-    {airfoil_patch}
-    {{
-        type            zeroGradient;
-    }}
-}}
-"""
-
-    def set_custom_velocity(self, velocity: np.ndarray) -> None:
-        """
-        Set a custom velocity vector.
-
-        Args:
-            velocity (np.ndarray): The velocity vector to set.
-        """
-        self._velocity = velocity
-
-    def set_custom_pressure(self, pressure: float, kinematic: bool = False) -> None:
-        """
-        Set a custom pressure value.
-
-        Args:
-            pressure (float): The pressure value to set.
-            kinematic (bool): Flag indicating if the pressure is kinematic.
-        """
-        self._kinematic_pressure = kinematic
-
-        if kinematic:
-            self._pressure = pressure * self.density
-        else:
-            self._pressure = pressure
+        return p_bc(
+            pressure_value=pressure_value,
+            setup=self.bc_setup
+        )
 
     def turbulence_bc(self) -> dict[str, str]:
         """
         Generate the formatted string for the turbulence boundary conditions files for
-        the current turbulence model. Supported models: kOmegaSST, kEpsilon and
-        SpalartAllmaras.
+        the current turbulence model. Supported models: kOmegaSST, kOmegaSSTLM, kEpsilon
+        and SpalartAllmaras.
 
         Returns:
             dict[str, str]: Formatted strings for the turbulence boundary condition
@@ -552,359 +381,32 @@ boundaryField
 
         model = self._turbulence_model.lower()
         if model == "komegasst":
-            return self.kOmegaSST_bc()
+            return {
+                "k": k_bc(k=self.k, setup=self.bc_setup),
+                "omega": omega_bc(omega=self.omega, setup=self.bc_setup),
+                "nut": nut_bc(setup=self.bc_setup)
+            }
+        elif model == "komegasstlm":
+            return {
+                "k": k_bc(k=self.k, setup=self.bc_setup),
+                "omega": omega_bc(omega=self.omega, setup=self.bc_setup),
+                "nut": nut_bc(setup=self.bc_setup),
+                "gammaInt": gammaInt_bc(gammaInt=1e-5, setup=self.bc_setup),
+                "ReThetat": retheta_bc(reteta=1000, setup=self.bc_setup)
+            }
         elif model == "kepsilon":
-            return self.kEpsilon_bc()
+            return {
+                "k": k_bc(k=self.k, setup=self.bc_setup),
+                "epsilon": epsilon_bc(epsilon=self.epsilon, setup=self.bc_setup),
+                "nut": nut_bc(setup=self.bc_setup)
+            }
         elif model == "spalartallmaras":
-            return self.SpalartAllmaras_bc()
+            # Example, add your own function for SpalartAllmaras
+            return {
+                "nut": nut_bc(setup=self.bc_setup)
+            }
         else:
             raise ValueError(f"Unsupported turbulence model: {model}")
-
-    def kOmegaSST_bc(self,
-                     inlet_patch: str = None,
-                     outlet_patch: str = None,
-                     lower_wall_patch: str = None,
-                     upper_wall_patch: str = None,
-                     front_patch: str = None,
-                     back_patch: str = None,
-                     airfoil_patch: str = None
-                     ) -> dict[str, str]:
-        """
-        Generate boundary conditions for k-omega SST model (0/k, 0/omega, 0/nut).
-        """
-        if inlet_patch is None:
-            inlet_patch = self.bc_setup.get("InletPatch", "inlet")
-        if outlet_patch is None:
-            outlet_patch = self.bc_setup.get("OutletPatch", "outlet")
-        if lower_wall_patch is None:
-            lower_wall_patch = self.bc_setup.get("LowerWallPatch", "lowerWall")
-        if upper_wall_patch is None:
-            upper_wall_patch = self.bc_setup.get("UpperWallPatch", "upperWall")
-        if front_patch is None:
-            front_patch = self.bc_setup.get("FrontPatch", "front")
-        if back_patch is None:
-            back_patch = self.bc_setup.get("BackPatch", "back")
-        if airfoil_patch is None:
-            airfoil_patch = self.bc_setup.get("AirfoilPatch", "airfoil")
-
-        # 0/k
-        k_bc = f"""FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       volScalarField;
-    object      k;
-}}
-
-dimensions      [0 2 -2 0 0 0 0];
-
-internalField   uniform {self.k};
-
-boundaryField
-{{
-    {inlet_patch}
-    {{
-        type            fixedValue;
-        value           uniform {self.k};
-    }}
-    {outlet_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {lower_wall_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {upper_wall_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {front_patch}
-    {{
-        type            symmetryPlane;
-    }}
-    {back_patch}
-    {{
-        type            symmetryPlane;
-    }}
-    {airfoil_patch}
-    {{
-        type            kqRWallFunction;
-        value           uniform 0;
-    }}
-}}
-"""
-
-        # 0/omega
-        omega_bc = f"""FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       volScalarField;
-    object      omega;
-}}
-
-dimensions      [0 0 -1 0 0 0 0];
-
-internalField   uniform {self.omega};
-
-boundaryField
-{{
-    {inlet_patch}
-    {{
-        type            fixedValue;
-        value           uniform {self.omega};
-    }}
-    {outlet_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {lower_wall_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {upper_wall_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {front_patch}
-    {{
-        type            symmetryPlane;
-    }}
-    {back_patch}
-    {{
-        type            symmetryPlane;
-    }}
-    {airfoil_patch}
-    {{
-        type            omegaWallFunction;
-        value           uniform 0;
-    }}
-}}
-"""
-
-        # 0/nut
-        nut_bc = f"""FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       volScalarField;
-    object      nut;
-}}
-
-dimensions      [0 2 -1 0 0 0 0];
-
-internalField   uniform 0;
-
-boundaryField
-{{
-    {inlet_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {outlet_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {lower_wall_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {upper_wall_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {front_patch}
-    {{
-        type            symmetryPlane;
-    }}
-    {back_patch}
-    {{
-        type            symmetryPlane;
-    }}
-    {airfoil_patch}
-    {{
-        type            nutUSpaldingWallFunction;
-        value           uniform 0;
-    }}
-}}
-"""
-
-        return {"k": k_bc, "omega": omega_bc, "nut": nut_bc}
-
-    def kEpsilon_bc(self,
-                    inlet_patch: str = None,
-                    outlet_patch: str = None,
-                    lower_wall_patch: str = None,
-                    upper_wall_patch: str = None,
-                    front_patch: str = None,
-                    back_patch: str = None,
-                    airfoil_patch: str = None
-                    ) -> dict[str, str]:
-        """
-        Generate boundary conditions for k-epsilon model (0/k, 0/epsilon, 0/nut).
-        """
-        if inlet_patch is None:
-            inlet_patch = self.bc_setup.get("InletPatch", "inlet")
-        if outlet_patch is None:
-            outlet_patch = self.bc_setup.get("OutletPatch", "outlet")
-        if lower_wall_patch is None:
-            lower_wall_patch = self.bc_setup.get("LowerWallPatch", "lowerWall")
-        if upper_wall_patch is None:
-            upper_wall_patch = self.bc_setup.get("UpperWallPatch", "upperWall")
-        if front_patch is None:
-            front_patch = self.bc_setup.get("FrontPatch", "front")
-        if back_patch is None:
-            back_patch = self.bc_setup.get("BackPatch", "back")
-        if airfoil_patch is None:
-            airfoil_patch = self.bc_setup.get("AirfoilPatch", "airfoil")
-
-        # 0/k
-        k_bc = f"""FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       volScalarField;
-    object      k;
-}}
-
-dimensions      [0 2 -2 0 0 0 0];
-
-internalField   uniform {self.k};
-
-boundaryField
-{{
-    {inlet_patch}
-    {{
-        type            fixedValue;
-        value           uniform {self.k};
-    }}
-    {outlet_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {lower_wall_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {upper_wall_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {front_patch}
-    {{
-        type            symmetryPlane;
-    }}
-    {back_patch}
-    {{
-        type            symmetryPlane;
-    }}
-    {airfoil_patch}
-    {{
-        type            fixedValue;
-        value           uniform 0;
-    }}
-}}
-"""
-
-        # 0/epsilon
-        epsilon_bc = f"""FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       volScalarField;
-    object      epsilon;
-}}
-
-dimensions      [0 2 -3 0 0 0 0];
-
-internalField   uniform {self.epsilon};
-
-boundaryField
-{{
-    {inlet_patch}
-    {{
-        type            fixedValue;
-        value           uniform {self.epsilon};
-    }}
-    {outlet_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {lower_wall_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {upper_wall_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {front_patch}
-    {{
-        type            symmetryPlane;
-        value           uniform {self.epsilon};
-    }}
-    {back_patch}
-    {{
-        type            symmetryPlane;
-        value           uniform {self.epsilon};
-    }}
-    {airfoil_patch}
-    {{
-        type            fixedValue;
-        value           uniform 0;
-    }}
-}}
-"""
-
-        # 0/nut
-        nut_bc = f"""FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       volScalarField;
-    object      nut;
-}}
-
-dimensions      [0 2 -1 0 0 0 0];
-
-internalField   uniform 0;
-
-boundaryField
-{{
-    {inlet_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {outlet_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {lower_wall_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {upper_wall_patch}
-    {{
-        type            zeroGradient;
-    }}
-    {front_patch}
-    {{
-        type            symmetryPlane;
-    }}
-    {back_patch}
-    {{
-        type            symmetryPlane;
-    }}
-    {airfoil_patch}
-    {{
-        type            nutUSpaldingWallFunction;
-        value           uniform 0;
-    }}
-}}
-"""
-
-        return {"k": k_bc, "epsilon": epsilon_bc, "nut": nut_bc}
 
     def write_bc(self, content: str, output_path: Path) -> None:
         """
@@ -1144,11 +646,9 @@ boundaryField
         Returns:
             float: The specific dissipation rate.
         """
-        U_inf = np.linalg.norm(self.velocity)
         C_mu = 0.09
 
-        k = 1.5 * (U_inf * self.turbulence_intensity) ** 2
-        omega = np.sqrt(k) / (C_mu ** 0.25 * self.turbulence_length_scale)
+        omega = np.sqrt(self.k) / (C_mu ** 0.25 * self.turbulence_length_scale)
         return omega
 
     @property
@@ -1159,11 +659,9 @@ boundaryField
         Returns:
             float: The dissipation rate.
         """
-        U_inf = np.linalg.norm(self.velocity)
         C_mu = 0.09
 
-        k = 1.5 * (U_inf * self.turbulence_intensity) ** 2
-        epsilon = (C_mu ** 0.75) * (k ** 1.5) / self.turbulence_length_scale
+        epsilon = (C_mu ** 0.75) * (self.k ** 1.5) / self.turbulence_length_scale
         return epsilon
 
     @property
@@ -1184,4 +682,4 @@ boundaryField
         Returns:
             float: The turbulence length scale.
         """
-        return self._turbulence_length_scale
+        return self._turbulence_length_scale * self.chord

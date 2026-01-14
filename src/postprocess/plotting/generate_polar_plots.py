@@ -1,16 +1,18 @@
 import argparse
 from pathlib import Path
 import pandas as pd
+import numpy as np
 from postprocess.plotting.matplotlib_plots import (
     plot_lift_curve, plot_drag_curve, plot_drag_polar, plot_lift_to_drag_vs_alpha
 )
 from templates.plot_config import DEFAULT_PLOT_CONFIG
-from utils.utilities import read_uiuc_reference_csv
+from utils.utilities import interpolate_airfoil_coefficients
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
-        description="Generate polar plots (lift, drag, drag polar, lift-to-drag) from multiple postprocessing summary CSV files."
+        description="Generate polar plots (lift, drag, drag polar, lift-to-drag) from \
+            multiple postprocessing summary CSV files."
     )
     parser.add_argument(
         '--summary-csvs',
@@ -23,7 +25,7 @@ def parse_arguments():
         '--reference-csv',
         type=Path,
         required=False,
-        help='Optional path to reference CSV file for comparison.'
+        help='Optional path to reference CSV file for interpolating coefficients.'
     )
     parser.add_argument(
         '--output-dir',
@@ -67,6 +69,46 @@ def prepare_series_from_df(df, label, color=None, plot_type="plot"):
     ]
 
 
+def prepare_reference_series_from_interpolation(reference_csv, alpha_values, color="orange"):
+    """
+    Generate reference series by interpolating coefficients for given alpha values.
+
+    Args:
+        reference_csv (Path): Path to reference CSV file.
+        alpha_values (np.ndarray): Array of angle of attack values to interpolate.
+        color (str): Color for reference plots.
+
+    Returns:
+        list: List of 4 series dictionaries (lift, drag, drag polar, lift-to-drag).
+    """
+    cl_interp = []
+    cd_interp = []
+
+    for alpha in alpha_values:
+        try:
+            coeffs = interpolate_airfoil_coefficients(reference_csv, alpha)
+            cl_interp.append(coeffs['Cl'])
+            cd_interp.append(coeffs['Cd'])
+        except ValueError:
+            # Skip angles outside valid range
+            continue
+
+    cl_interp = np.array(cl_interp)
+    cd_interp = np.array(cd_interp)
+    alpha_interp = alpha_values[:len(cl_interp)]
+
+    return [
+        {"x": alpha_interp, "y": cl_interp, "label": "Reference Cl",
+            "color": color, "plot_type": "scatter"},
+        {"x": alpha_interp, "y": cd_interp, "label": "Reference Cd",
+            "color": color, "plot_type": "scatter"},
+        {"x": cl_interp, "y": cd_interp, "label": "Reference Drag Polar",
+            "color": color, "plot_type": "scatter"},
+        {"x": alpha_interp, "y": cl_interp / cd_interp,
+            "label": "Reference Cl/Cd", "color": color, "plot_type": "scatter"},
+    ]
+
+
 def main():
     args = parse_arguments()
     output_dir = args.output_dir
@@ -75,6 +117,8 @@ def main():
     # Step 1: Read and parse all summary CSVs
     all_series = [[], [], [], []]  # For lift, drag, drag polar, lift-to-drag
     colors = ["b", "g", "m", "c", "y", "k", "r"]
+    alpha_values = None
+
     for idx, csv_path in enumerate(args.summary_csvs):
         df = pd.read_csv(csv_path)
         if df is not None:
@@ -84,11 +128,17 @@ def main():
             for i in range(4):
                 all_series[i].append(series_list[i])
 
-    # Step 2: If reference CSV is given, add its data
-    if args.reference_csv:
-        ref_df = read_uiuc_reference_csv(args.reference_csv)
-        ref_series = prepare_series_from_df(
-            ref_df, label="Reference", color="orange", plot_type="scatter")
+            # Extract alpha values from first summary CSV for reference interpolation
+            if alpha_values is None:
+                if "Alpha" in df.columns:
+                    alpha_values = df["Alpha"].values
+                elif "AngleOfAttack" in df.columns:
+                    alpha_values = df["AngleOfAttack"].values
+
+    # Step 2: If reference CSV is given, interpolate and add its data
+    if args.reference_csv and alpha_values is not None:
+        ref_series = prepare_reference_series_from_interpolation(
+            args.reference_csv, alpha_values, color="orange")
         for i in range(4):
             all_series[i].append(ref_series[i])
 

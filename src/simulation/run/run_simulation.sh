@@ -25,10 +25,8 @@ print_logs=$(cat "$setup_file" | tr -d '\r' | jq -r '.Simulation.PrintLogs // fa
 echo "Number of processors: ${n_procs}"
 echo "Print logs: ${print_logs}"
 
-# Create log directory
 mkdir -p simulation_logs
 
-# Function to run command with or without printing
 run_cmd() {
     local cmd="$1"
     local logfile="simulation_logs/$2"
