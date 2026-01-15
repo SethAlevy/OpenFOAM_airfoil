@@ -1,12 +1,12 @@
 import argparse
-from pathlib import Path
-import pandas as pd
 import numpy as np
+import pandas as pd
+from pathlib import Path
+from templates.plot_config import DEFAULT_PLOT_CONFIG
+from utils.utilities import interpolate_airfoil_coefficients
 from postprocess.plotting.matplotlib_plots import (
     plot_lift_curve, plot_drag_curve, plot_drag_polar, plot_lift_to_drag_vs_alpha
 )
-from templates.plot_config import DEFAULT_PLOT_CONFIG
-from utils.utilities import interpolate_airfoil_coefficients
 
 
 def parse_arguments():
@@ -49,8 +49,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def prepare_series_from_df(df, label, color=None, plot_type="plot"):
-    # Use 'Alpha' if present, else 'AngleOfAttack'
+def series_from_df(df, label, color=None, plot_type="plot"):
     if "Alpha" in df.columns:
         alpha_col = "Alpha"
     elif "AngleOfAttack" in df.columns:
@@ -69,7 +68,7 @@ def prepare_series_from_df(df, label, color=None, plot_type="plot"):
     ]
 
 
-def prepare_reference_series_from_interpolation(reference_csv, alpha_values, color="orange"):
+def reference_series_from_interpolation(reference_csv, alpha_values, color="orange"):
     """
     Generate reference series by interpolating coefficients for given alpha values.
 
@@ -90,7 +89,6 @@ def prepare_reference_series_from_interpolation(reference_csv, alpha_values, col
             cl_interp.append(coeffs['Cl'])
             cd_interp.append(coeffs['Cd'])
         except ValueError:
-            # Skip angles outside valid range
             continue
 
     cl_interp = np.array(cl_interp)
@@ -114,35 +112,31 @@ def main():
     output_dir = args.output_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Step 1: Read and parse all summary CSVs
-    all_series = [[], [], [], []]  # For lift, drag, drag polar, lift-to-drag
+    all_series = [[], [], [], []]
     colors = ["b", "g", "m", "c", "y", "k", "r"]
     alpha_values = None
 
     for idx, csv_path in enumerate(args.summary_csvs):
         df = pd.read_csv(csv_path)
         if df is not None:
-            label = csv_path.parent.name if csv_path.parent.name else csv_path.stem
-            series_list = prepare_series_from_df(
+            label = csv_path.parent.name or csv_path.stem
+            series_list = series_from_df(
                 df, label=label, color=colors[idx % len(colors)])
             for i in range(4):
                 all_series[i].append(series_list[i])
 
-            # Extract alpha values from first summary CSV for reference interpolation
             if alpha_values is None:
                 if "Alpha" in df.columns:
                     alpha_values = df["Alpha"].values
                 elif "AngleOfAttack" in df.columns:
                     alpha_values = df["AngleOfAttack"].values
 
-    # Step 2: If reference CSV is given, interpolate and add its data
     if args.reference_csv and alpha_values is not None:
-        ref_series = prepare_reference_series_from_interpolation(
+        ref_series = reference_series_from_interpolation(
             args.reference_csv, alpha_values, color="orange")
         for i in range(4):
             all_series[i].append(ref_series[i])
 
-    # Step 3: Generate plots
     config = DEFAULT_PLOT_CONFIG
     plot_lift_curve(
         series=all_series[0],

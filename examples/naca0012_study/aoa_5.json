@@ -138,7 +138,7 @@
         "TurbulenceProperties": {
             "Turbulence": "on",
             "Model": "kOmegaSST",
-            "TurbulenceIntensity": 0.0003,
+            "TurbulenceIntensity": 0.0005,
             "TurbulenceLengthScaleChord": 0.015,
             "kOmegaSSTLM": {
                 "Cmu": 0.09
@@ -155,6 +155,9 @@
             "Pressure": 0.0,
             "ReynoldsNumber": 6000000,
             "InletPatchName": "inlet",
+            "InletK" : "turbulentIntensityKineticEnergyInlet",
+            "InletOmega": "turbulentMixingLengthFrequencyInlet",
+            "AirfoilNut": "nutLowReWallFunction",
             "OutletPatchName": "outlet",
             "LowerWallPatchName": "lowerWall",
             "UpperWallPatchName": "upperWall",

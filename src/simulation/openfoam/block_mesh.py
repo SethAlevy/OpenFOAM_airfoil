@@ -4,6 +4,9 @@ BlockMesh generation utilities for OpenFOAM.
 from pathlib import Path
 from templates.airfoil_template import Airfoil
 from templates.initial_settings_template import Settings
+from templates.openfoam_template_files.block_mesh_files import (
+    generate_block_mesh_dict
+)
 
 
 def get_bounding_box(airfoil: Airfoil, bounding_box_settings: dict) -> tuple:
@@ -45,18 +48,17 @@ def block_mesh_dict(
         airfoil (Airfoil): Airfoil object containing geometry.
         setup (Settings): Settings object containing mesh parameters.
         output_path (Path): Path to save the blockMeshDict file.
-
     """
     mesh_settings = setup.mesh_settings
     block_mesh = mesh_settings.get("BlockMesh", {})
 
     x_min, x_max, y_min, y_max, z_min, z_max = get_bounding_box(
-        airfoil, mesh_settings.get("BoundingBox", {}))
+        airfoil, mesh_settings.get("BoundingBox", {})
+    )
 
     nx = block_mesh.get("NX", 100)
     ny = block_mesh.get("NY", 50)
     nz = block_mesh.get("NZ", 1)
-
     scale = block_mesh.get("Scale", 1.0)
 
     bc = setup.simulation_settings.get("BoundaryConditions", {})
@@ -64,94 +66,27 @@ def block_mesh_dict(
     outlet_name = bc.get("OutletPatchName", "outlet")
     lower_wall_name = bc.get("LowerWallPatchName", "lowerWall")
     upper_wall_name = bc.get("UpperWallPatchName", "upperWall")
+    front_name = bc.get("FrontPatchName", "front")
+    back_name = bc.get("BackPatchName", "back")
 
-    content = f"""FoamFile
-{{
-    version     2.0;
-    format      ascii;
-    class       dictionary;
-    object      blockMeshDict;
-}}
-
-scale {scale};
-
-vertices
-(
-    ({x_min} {y_min} {z_min})
-    ({x_max} {y_min} {z_min})
-    ({x_max} {y_max} {z_min})
-    ({x_min} {y_max} {z_min})
-    ({x_min} {y_min} {z_max})
-    ({x_max} {y_min} {z_max})
-    ({x_max} {y_max} {z_max})
-    ({x_min} {y_max} {z_max})
-);
-
-blocks
-(
-    hex (0 1 2 3 4 5 6 7) ({nx} {ny} {nz}) simpleGrading (1 1 1)
-);
-
-edges
-(
-);
-
-boundary
-(
-    {inlet_name}
-    {{
-        type patch;
-        faces
-        (
-            (0 4 7 3)
-        );
-    }}
-    {outlet_name}
-    {{
-        type patch;
-        faces
-        (
-            (1 2 6 5)
-        );
-    }}
-    {lower_wall_name}
-    {{
-        type wall;
-        faces
-        (
-            (0 1 5 4)
-        );
-    }}
-    {upper_wall_name}
-    {{
-        type wall;
-        faces
-        (
-            (3 7 6 2)
-        );
-    }}
-    front
-    {{
-        type symmetryPlane;
-        faces
-        (
-            (4 5 6 7)
-        );
-    }}
-    back
-    {{
-        type symmetryPlane;
-        faces
-        (
-            (0 3 2 1)
-        );
-    }}
-);
-
-mergePatchPairs
-(
-);
-"""
+    content = generate_block_mesh_dict(
+        x_min=x_min,
+        x_max=x_max,
+        y_min=y_min,
+        y_max=y_max,
+        z_min=z_min,
+        z_max=z_max,
+        nx=nx,
+        ny=ny,
+        nz=nz,
+        scale=scale,
+        inlet_patch=inlet_name,
+        outlet_patch=outlet_name,
+        lower_wall_patch=lower_wall_name,
+        upper_wall_patch=upper_wall_name,
+        front_patch=front_name,
+        back_patch=back_name
+    )
 
     with open(output_path / "blockMeshDict", "w") as f:
         f.write(content)

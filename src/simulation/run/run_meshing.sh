@@ -45,11 +45,8 @@ else
     echo "Running blockMesh ..."
     run_cmd "blockMesh" "blockMesh.log"
 
-    # Extract features BEFORE decomposition
-    if [ -f "system/surfaceFeatureExtractDict" ]; then
-        echo "surfaceFeatureExtractDict found. Running surfaceFeatureExtract ..."
-        run_cmd "surfaceFeatureExtract" "surfaceFeatureExtract.log"
-    fi
+    echo "surfaceFeatureExtractDict found. Running surfaceFeatureExtract ..."
+    run_cmd "surfaceFeatureExtract" "surfaceFeatureExtract.log"
 
     if [ "$n_procs" -le 1 ]; then
         echo "Single processor. Running snappyHexMesh ..."

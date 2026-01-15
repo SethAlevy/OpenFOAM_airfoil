@@ -23,7 +23,7 @@ class PlotConfig:
     # Line settings
     line_width: int = 2
     marker_size: int = 3
-    marker_every: int = 50  # Show marker every N points
+    marker_every: int = 50
 
     # Grid settings
     grid_alpha: float = 0.6

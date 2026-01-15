@@ -1,14 +1,14 @@
 import warnings
-from pathlib import Path
-from typing import List, Literal, Optional
-
-import matplotlib.pyplot as plt
 import numpy as np
 import pyvista as pv
-
 import utils.utilities as ut
-from templates.plot_config import DEFAULT_PLOT_CONFIG, PlotConfig
+import utils.geometry as geo
+import matplotlib.pyplot as plt
+
+from pathlib import Path
+from typing import List, Literal, Optional
 from utils.logger import SimpleLogger as logger
+from templates.plot_config import DEFAULT_PLOT_CONFIG, PlotConfig
 
 warnings.filterwarnings("ignore", category=UserWarning, module="pyvista.jupyter")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="pyvista")
@@ -288,7 +288,7 @@ def plot_velocity_profiles(
         config (PlotConfig): Plot styling configuration. If None, defaults are used.
         plot_type (Literal["plot", "scatter"]): Plot type for all series.
     """
-    mesh = ut.load_latest_vtm(vtk_dir)
+    mesh = geo.load_latest_vtm(vtk_dir)
 
     if "U" not in mesh.array_names:
         raise KeyError(
@@ -296,7 +296,7 @@ def plot_velocity_profiles(
         )
 
     colors = plt.cm.viridis(np.linspace(0, 1, len(x_locations)))
-    bounds_dict = ut.get_mesh_bounds(mesh)
+    bounds_dict = geo.get_mesh_bounds(mesh)
     y_min, y_max = bounds_dict["y_min"], bounds_dict["y_max"]
 
     series = []
@@ -432,7 +432,7 @@ def plot_cp_distribution_sampled(
         plot_type (Literal["plot", "scatter"]): Plot type for all series.
     """
     vtk_dir = case_dir / "VTK"
-    mesh = ut.load_latest_vtm(vtk_dir)
+    mesh = geo.load_latest_vtm(vtk_dir)
     if "Cp" not in mesh.array_names:
         raise KeyError("No Cp field found in the VTM mesh.")
 

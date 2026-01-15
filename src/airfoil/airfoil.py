@@ -3,7 +3,7 @@ import requests
 from scipy.interpolate import interp1d
 from pathlib import Path
 from utils.logger import SimpleLogger
-import utils.utilities as ut
+import utils.geometry as geo
 
 from .airfoil_base import BaseAirfoil
 
@@ -498,10 +498,10 @@ class UIUCAirfoil(BaseAirfoil):
             tuple[np.ndarray, np.ndarray]: Arrays of resampled upper and lower surface
             coordinates.
         """
-        upper_line_resampled = ut.resample_line(
+        upper_line_resampled = geo.resample_line(
             upper_line[0], upper_line[1], self.resolution
         )
-        lower_line_resampled = ut.resample_line(
+        lower_line_resampled = geo.resample_line(
             lower_line[0], lower_line[1], self.resolution
         )
         return upper_line_resampled, lower_line_resampled

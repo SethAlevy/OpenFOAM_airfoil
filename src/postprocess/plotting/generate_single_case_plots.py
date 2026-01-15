@@ -1,12 +1,12 @@
 import argparse
-from pathlib import Path
 from typing import List
+from pathlib import Path
+from utils.logger import SimpleLogger
+from templates.plot_config import DEFAULT_PLOT_CONFIG
 from postprocess.plotting.matplotlib_plots import (plot_residuals, plot_velocity_profiles,
                                                    plot_force_coefficients)
 from postprocess.plotting.pyvista_plots import (plot_streamlines, plot_velocity_contours,
                                                 plot_pressure_contours)
-from templates.plot_config import DEFAULT_PLOT_CONFIG
-from utils.logger import SimpleLogger
 
 
 def parse_arguments():
@@ -102,7 +102,6 @@ def validate_case_directory(case_dir: Path) -> tuple[Path, Path]:
     vtk_dir = case_dir / "VTK"
     logs_dir = case_dir / "logs"
 
-    # Warn about missing directories
     if not vtk_dir.exists():
         SimpleLogger.warning(f"VTK directory not found: {vtk_dir}")
 
@@ -133,13 +132,15 @@ def get_save_formats(requested_formats: List[str], plot_type: str) -> List[str]:
 
 
 def generate_plots():
-    """Main function to generate plots based on command line arguments."""
+    """
+    Main function to generate plots based on command line arguments.
+    """
     args = parse_arguments()
 
     case_dir = args.case_dir.resolve()
     vtk_dir, logs_dir = validate_case_directory(case_dir)
 
-    output_dir = args.output_dir if args.output_dir else case_dir / "plots"
+    output_dir = args.output_dir or case_dir / "plots"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     SimpleLogger.log(f"Generating plots for case: {case_dir}")
@@ -147,12 +148,11 @@ def generate_plots():
 
     config = DEFAULT_PLOT_CONFIG
 
-    # Determine which plots to generate
     plots_to_generate = args.plots
     if 'all' in plots_to_generate:
         plots_to_generate = [
             'residuals', 'streamlines', 'velocity-contours',
-            'pressure-contours', 'velocity-profiles', 'force-coeffs'  # <-- ADD HERE
+            'pressure-contours', 'velocity-profiles', 'force-coeffs'
         ]
 
     if 'residuals' in plots_to_generate:

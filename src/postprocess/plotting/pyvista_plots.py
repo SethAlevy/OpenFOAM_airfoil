@@ -1,13 +1,12 @@
 import warnings
+import numpy as np
+import utils.utilities as ut
+import utils.geometry as geo
+import pyvista as pv
 from pathlib import Path
 from typing import List, Literal, Optional
-
-import numpy as np
-import pyvista as pv
-
-import utils.utilities as ut
-from templates.plot_config import DEFAULT_PLOT_CONFIG, PlotConfig
 from utils.logger import SimpleLogger as logger
+from templates.plot_config import DEFAULT_PLOT_CONFIG, PlotConfig
 
 warnings.filterwarnings("ignore", category=UserWarning, module="pyvista.jupyter")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="pyvista")
@@ -76,7 +75,7 @@ def setup_pyvista_plotter(
     plotter = pv.Plotter(off_screen=not show)
 
     if add_airfoil:
-        airfoil_boundary = ut.load_vtm_boundary(vtk_dir, "airfoil")
+        airfoil_boundary = geo.load_vtm_boundary(vtk_dir, "airfoil")
         plotter.add_mesh(
             airfoil_boundary,
             color=config.pyvista_airfoil_color,
@@ -130,9 +129,9 @@ def plot_streamlines(
     if config is None:
         config = DEFAULT_PLOT_CONFIG
 
-    mesh = ut.load_latest_vtm(vtk_dir)
+    mesh = geo.load_latest_vtm(vtk_dir)
 
-    bounds_dict = ut.get_mesh_bounds(mesh)
+    bounds_dict = geo.get_mesh_bounds(mesh)
     x_min, x_max = bounds_dict["x_min"], bounds_dict["x_max"]
     y_min, y_max = bounds_dict["y_min"], bounds_dict["y_max"]
 
@@ -213,7 +212,7 @@ def plot_velocity_contours(
     if config is None:
         config = DEFAULT_PLOT_CONFIG
 
-    mesh = ut.load_latest_vtm(vtk_dir)
+    mesh = geo.load_latest_vtm(vtk_dir)
     mesh["U_mag"] = ut.get_velocity_magnitude(mesh)
 
     plotter = setup_pyvista_plotter(
@@ -265,7 +264,7 @@ def plot_pressure_contours(
     if config is None:
         config = DEFAULT_PLOT_CONFIG
 
-    mesh = ut.load_latest_vtm(vtk_dir)
+    mesh = geo.load_latest_vtm(vtk_dir)
 
     p_field = next(
         (name for name in ["p", "p_rgh", "Cp"] if name in mesh.array_names),

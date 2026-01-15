@@ -1,8 +1,9 @@
 import numpy as np
-from templates.airfoil_template import Airfoil
-from utils.logger import SimpleLogger
 from pathlib import Path
 import utils.utilities as ut
+import utils.geometry as geo
+from utils.logger import SimpleLogger
+from templates.airfoil_template import Airfoil
 from postprocess.plotting.matplotlib_plots import plot_airfoil
 
 
@@ -34,26 +35,32 @@ class BaseAirfoil(Airfoil):
         resolution: int = None,
         setup=None
     ):
-        if setup is not None:
-            airfoil_config = setup.airfoil_settings
-            setup_designation = airfoil_config.get("Designation", "0012")
-            setup_name = airfoil_config.get("Name", "b737d")
-            setup_chord = airfoil_config.get("Chord", 1.0)
-            setup_resolution = airfoil_config.get("Resolution", 200)
-            setup_aoa = airfoil_config.get("AngleOfAttack", 0.0)
-        else:
-            setup_designation = "0012"
-            setup_name = "b737d"
-            setup_chord = 1.0
-            setup_resolution = 200
-            setup_aoa = 0.0
+        default_config = {
+            "Designation": "0012",
+            "Name": "b737d",
+            "Chord": 1.0,
+            "Resolution": 200,
+            "AngleOfAttack": 0.0
+        }
+
+        airfoil_config = setup.airfoil_settings if setup is not None else default_config
 
         self.source = source
-        self.designation = designation if designation is not None else setup_designation
-        self.name = name if name is not None else setup_name
-        self._chord = chord_length if chord_length is not None else setup_chord
-        self.resolution = resolution if resolution is not None else setup_resolution
-        self.angle_of_attack = setup_aoa
+        self.designation = ut.resolve_value(
+            designation, airfoil_config, "Designation", "0012"
+        )
+        self.name = ut.resolve_value(
+            name, airfoil_config, "Name", "b737d"
+        )
+        self._chord = ut.resolve_value(
+            chord_length, airfoil_config, "Chord", 1.0
+        )
+        self.resolution = ut.resolve_value(
+            resolution, airfoil_config, "Resolution", 200
+        )
+        self.angle_of_attack = ut.resolve_value(
+            None, airfoil_config, "AngleOfAttack", 0.0
+        )
         self._alpha = 0.0
 
         self.x = np.linspace(0, 1.01, self.resolution + 5)
@@ -104,13 +111,13 @@ class BaseAirfoil(Airfoil):
             xl[-1], yl[-1] = x_te, y_te
             xu = xu[:self.resolution]
             yu = yu[:self.resolution]
-            return ut.rotate_by_alpha(-self.alpha, xu * self.chord, yu * self.chord)
+            return geo.rotate_by_alpha(-self.alpha, xu * self.chord, yu * self.chord)
         elif self.source == "file":
             upper_line = np.array([
                 self._upper_line_resampled[0] * self.chord,
                 self._upper_line_resampled[1] * self.chord
             ])
-            return ut.rotate_by_alpha(-self._alpha, upper_line[0], upper_line[1])
+            return geo.rotate_by_alpha(-self._alpha, upper_line[0], upper_line[1])
 
     @property
     def lower_surface(self):
@@ -138,13 +145,13 @@ class BaseAirfoil(Airfoil):
             xl[-1], yl[-1] = x_te, y_te
             xl = xl[:self.resolution]
             yl = yl[:self.resolution]
-            return ut.rotate_by_alpha(-self.alpha, xl * self.chord, yl * self.chord)
+            return geo.rotate_by_alpha(-self.alpha, xl * self.chord, yl * self.chord)
         elif self.source == "file":
             lower_line = np.array([
                 self._lower_line_resampled[0] * self.chord,
                 self._lower_line_resampled[1] * self.chord
             ])
-            return ut.rotate_by_alpha(-self._alpha, lower_line[0], lower_line[1])
+            return geo.rotate_by_alpha(-self._alpha, lower_line[0], lower_line[1])
 
     @property
     def mean_camber_line(self):
@@ -156,7 +163,7 @@ class BaseAirfoil(Airfoil):
         """
         if self.source == "naca":
             yc = self._mean_camber_line(self.x_alpha_zero, self.m, self.p)
-            return ut.rotate_by_alpha(
+            return geo.rotate_by_alpha(
                 -self.alpha,
                 self.x_alpha_zero * self.chord,
                 yc * self.chord
@@ -166,7 +173,7 @@ class BaseAirfoil(Airfoil):
                 self._mean_camber_line[0] * self.chord,
                 self._mean_camber_line[1] * self.chord
             ])
-            return ut.rotate_by_alpha(
+            return geo.rotate_by_alpha(
                 -self._alpha,
                 mean_camber_line[0],
                 mean_camber_line[1]
@@ -186,13 +193,13 @@ class BaseAirfoil(Airfoil):
                 self.x * self.chord,
                 thickness * self.chord
             ])
-            return ut.rotate_by_alpha(-self.alpha, thickness[0], thickness[1])
+            return geo.rotate_by_alpha(-self.alpha, thickness[0], thickness[1])
         elif self.source == "file":
             thickness = np.array([
                 self._thickness[0] * self.chord,
                 self._thickness[1] * self.chord
             ])
-            return ut.rotate_by_alpha(-self._alpha, thickness[0], thickness[1])
+            return geo.rotate_by_alpha(-self._alpha, thickness[0], thickness[1])
 
     @property
     def chord(self) -> float:
@@ -258,9 +265,9 @@ class BaseAirfoil(Airfoil):
         xu, yu = self.upper_surface
         xl, yl = self.lower_surface
         if dimension == 2:
-            ut.export_airfoil_to_stl_2d(xu, yu, xl, yl, output_path)
+            geo.export_airfoil_to_stl_2d(xu, yu, xl, yl, output_path)
         elif dimension == 3:
-            ut.export_airfoil_to_stl_3d(xu, yu, xl, yl, output_path, thickness)
+            geo.export_airfoil_to_stl_3d(xu, yu, xl, yl, output_path, thickness)
 
     def airfoil_details(self):
         """

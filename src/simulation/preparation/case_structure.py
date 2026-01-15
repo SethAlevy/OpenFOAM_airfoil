@@ -42,13 +42,17 @@ def prepare_openfoam_case(
 
     if mesher and mesher.lower() in ["placeholder2d"]:
         airfoil.to_stl(
-            output_path=working_path / case_name / "constant" / "triSurface" / "airfoil.stl",
+            output_path=(
+                working_path / case_name / "constant" / "triSurface" / "airfoil.stl"
+            ),
             dimension=2
         )
     elif mesher and mesher.lower() in ["cfmesh", "snappyhexmesh"]:
         thickness = (z_max - z_min) * 1.01
         airfoil.to_stl(
-            output_path=working_path / case_name / "constant" / "triSurface" / "airfoil.stl",
+            output_path=(
+                working_path / case_name / "constant" / "triSurface" / "airfoil.stl"
+            ),
             thickness=thickness,
             dimension=3
         )
@@ -96,7 +100,7 @@ def create_meshing_files(
         case_path (Path): The path to the case directory.
         airfoil (Airfoil): The airfoil object containing geometry data.
         setup (Settings): The simulation settings.
-        mesher (str): The meshing method to use (e.g., "blockMesh", "snappyHexMesh").
+        mesher (str): The meshing method to use (e.g., "cfMesh", "snappyHexMesh").
     """
 
     block_mesh_dict(airfoil, setup, (case_path / "system"))

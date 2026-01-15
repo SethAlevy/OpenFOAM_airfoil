@@ -1,10 +1,11 @@
-from pathlib import Path
-import numpy as np
-from templates.initial_settings_template import Settings
-import utils.utilities as ut
-from utils.logger import SimpleLogger
 import csv
-from templates.boundary_conditions.boundary_files import (
+import numpy as np
+import utils.physics as ph
+import utils.utilities as ut
+from pathlib import Path
+from utils.logger import SimpleLogger
+from templates.initial_settings_template import Settings
+from templates.openfoam_template_files.boundary_files import (
     U_bc,
     p_bc,
     k_bc,
@@ -35,21 +36,23 @@ class BoundaryConditions:
             setup: Settings = None
     ) -> None:
         """
-        Initialize boundary conditions based on provided parameters or setup settings
-        if parameters are not provided.
+        Initialize boundary conditions based on provided parameters or setup
+        settings if parameters are not provided.
 
         There are three main ways to define the boundary conditions:
         1. Directly provide the velocity.
-        2. Provide the Mach number along with other parameters to calculate velocity.
+        2. Provide the Mach number along with other parameters to calculate
+           velocity.
         3. Provide the Reynolds number along with other parameters to calculate
-        velocity.
+           velocity.
 
-        If there are more than one way to define the boundary conditions, the priority
-        is same as above. The set of required parameters is not defined directly, as
-        there are different combinations possible. Missing parameters will be calculated
-        using general equations and models (like ISA for atmospheric conditions), but
-        it is recommended to carefully define the desired initial conditions and avoid
-        passing too many parameters at once.
+        If there are more than one way to define the boundary conditions, the
+        priority is same as above. The set of required parameters is not defined
+        directly, as there are different combinations possible. Missing
+        parameters will be calculated using general equations and models (like
+        ISA for atmospheric conditions), but it is recommended to carefully
+        define the desired initial conditions and avoid passing too many
+        parameters at once.
 
         Args:
             velocity (np.ndarray): Velocity vector.
@@ -61,10 +64,12 @@ class BoundaryConditions:
             nu (float): Kinematic viscosity.
             pressure (float): Pressure value.
             kinematic_pressure (bool): Flag indicating if pressure is kinematic.
-            turbulence_model (str): Selected turbulence model. If not provided, it will
-            be taken from the setup settings or assumed as "kOmegaSST".
+            turbulence_model (str): Selected turbulence model. If not provided,
+                it will be taken from the setup settings or assumed as
+                "kOmegaSST".
             turbulence_intensity (float): Turbulence intensity.
-            turbulence_length_scale (float): Turbulence length scale.
+            turbulence_length_scale (float): Turbulence length scale fraction. Needs
+                multiplication by chord.
             chord_length (float): Chord length of the airfoil.
             setup (Settings): Settings object containing simulation and airfoil
                 settings.
@@ -75,97 +80,97 @@ class BoundaryConditions:
         self.turbulence_setup = setup.simulation_settings.get(
             "TurbulenceProperties", {})
 
-        if kinematic_pressure is None:
-            self._kinematic_pressure = self.bc_setup.get("KinematicPressure", None)
-            if self._kinematic_pressure is None:
-                self._kinematic_pressure = False
-                SimpleLogger.warning(
-                    "KinematicPressure flag not specified, assuming absolute pressure."
-                )
+        # Resolve kinematic_pressure flag
+        self._kinematic_pressure = ut.resolve_value(
+            kinematic_pressure, self.bc_setup, "KinematicPressure", False
+        )
+        if kinematic_pressure is None and "KinematicPressure" not in self.bc_setup:
+            SimpleLogger.warning(
+                "KinematicPressure flag not specified, assuming absolute "
+                "pressure."
+            )
 
-        if velocity is None:
-            self._velocity = self.bc_setup.get("Velocity", None)
-        else:
-            self._velocity = velocity
-        if mach_number is None:
-            self._mach_number = self.bc_setup.get("MachNumber", None)
-        else:
-            self._mach_number = mach_number
-        if reynolds_number is None:
-            self._reynolds_number = self.bc_setup.get("ReynoldsNumber", None)
-        else:
-            self._reynolds_number = reynolds_number
-        if density is None:
-            self._density = self.fluid_setup.get("Density", None)
-        else:
-            self._density = density
-        if temperature is None:
-            self._temperature = self.fluid_setup.get("Temperature", None)
-        else:
-            self._temperature = temperature
-        if altitude is None:
-            self._altitude = self.fluid_setup.get("Altitude", None)
-        else:
-            self._altitude = altitude
-        if nu is None:
-            self._nu = self.fluid_setup.get("KinematicViscosity", None)
-        else:
-            self._nu = nu
-        if pressure is None:
-            self._pressure = self.bc_setup.get("Pressure", None)
-        else:
-            self._pressure = pressure
+        self._velocity = ut.resolve_value(velocity, self.bc_setup, "Velocity", None)
+        self._mach_number = ut.resolve_value(
+            mach_number, self.bc_setup, "MachNumber", None
+        )
+        self._reynolds_number = ut.resolve_value(
+            reynolds_number, self.bc_setup, "ReynoldsNumber", None
+        )
+        self._density = ut.resolve_value(density, self.fluid_setup, "Density", None)
+        self._temperature = ut.resolve_value(
+            temperature, self.fluid_setup, "Temperature", None
+        )
+        self._altitude = ut.resolve_value(altitude, self.fluid_setup, "Altitude", None)
+        self._nu = ut.resolve_value(nu, self.fluid_setup, "KinematicViscosity", None)
+        self._pressure = ut.resolve_value(pressure, self.bc_setup, "Pressure", None)
 
-        if turbulence_model is None:
-            turbulence_model = self.turbulence_setup.get("Model", None)
-            if turbulence_model is None:
-                SimpleLogger.warning(
-                    "Turbulence model no specified, assuming default kOmegaSST."
-                )
-                turbulence_model = "kOmegaSST"
-                turbulence_intensity = 0.01
-                turbulence_length_scale = 0.08
-        self._turbulence_model = turbulence_model
-        if turbulence_intensity is None:
-            self._turbulence_intensity = self.turbulence_setup.get(
-                "TurbulenceIntensity", None)
-        else:
+        # Resolve turbulence model
+        self._turbulence_model = ut.resolve_value(
+            turbulence_model, self.turbulence_setup, "Model", None
+        )
+        if self._turbulence_model is None:
+            SimpleLogger.warning(
+                "Turbulence model not specified, assuming default "
+                "kOmegaSST."
+            )
+            self._turbulence_model = "kOmegaSST"
+            turbulence_intensity = 0.0003
+            turbulence_length_scale = 0.015
+
+        # Resolve turbulence parameters
+        self._turbulence_intensity = ut.resolve_value(
+            turbulence_intensity, self.turbulence_setup, "TurbulenceIntensity", None
+        )
+        if turbulence_intensity is not None:
             self.turbulence_setup["TurbulenceIntensity"] = turbulence_intensity
-        if turbulence_length_scale is None:
-            self._turbulence_length_scale = self.turbulence_setup.get(
-                "TurbulenceLengthScaleChord", None)
-        else:
-            self.turbulence_setup["TurbulenceLengthScaleChord"] = turbulence_length_scale
 
-        if chord_length is None:
-            chord_length = setup.airfoil_settings.get("Chord", None)
-            if chord_length is None:
-                raise ValueError(
-                    "Chord length must be provided either directly or in the setup.")
-        self._chord = chord_length
+        self._turbulence_length_scale = ut.resolve_value(
+            turbulence_length_scale,
+            self.turbulence_setup,
+            "TurbulenceLengthScaleChord",
+            None
+        )
+        if turbulence_length_scale is not None:
+            self.turbulence_setup["TurbulenceLengthScaleChord"] = (
+                turbulence_length_scale
+            )
+
+        self._chord = ut.resolve_value(
+            chord_length, setup.airfoil_settings, "Chord", None
+        )
+        if self._chord is None:
+            raise ValueError(
+                "Chord length must be provided either directly or in the "
+                "setup."
+            )
 
         if altitude is not None and (
                 temperature is None or pressure is None or density is None):
             SimpleLogger.warning(
-                "Altitude provided, calculating temperature, pressure, and density"
-                " using ISA if missing."
+                "Altitude provided, calculating temperature, pressure, and "
+                "density using ISA if missing."
             )
 
+            convert_to_kinematic = False
             if pressure is None and self._kinematic_pressure:
                 convert_to_kinematic = True
 
-            temperature, pressure, density = ut.international_standard_atmosphere(
-                altitude, temperature, pressure, density)
+            temperature, pressure, density = (
+                ph.international_standard_atmosphere(
+                    altitude, temperature, pressure, density)
+            )
 
             SimpleLogger.log(
-                f"Conditions: {altitude} m, temperature: {temperature} K,"
-                f" absolute pressure: {pressure} Pa, ρ={density} kg/m³"
+                f"Conditions: {altitude} m, temperature: {temperature} K, "
+                f"absolute pressure: {pressure} Pa, ρ={density} kg/m³"
             )
 
             if convert_to_kinematic:
                 pressure *= density
                 SimpleLogger.warning(
-                    "Converting calculated absolute pressure to kinematic pressure."
+                    "Converting calculated absolute pressure to kinematic "
+                    "pressure."
                 )
 
             self._temperature = temperature
@@ -177,10 +182,12 @@ class BoundaryConditions:
             and self.density is not None
         ):
             SimpleLogger.warning(
-                "Calculating kinematic viscosity based on temperature and density."
+                "Calculating kinematic viscosity based on temperature and "
+                "density."
             )
 
-            self._nu = ut.kinematic_viscosity_air(self.temperature, self.density)
+            self._nu = ph.kinematic_viscosity_air(
+                self.temperature, self.density)
 
             SimpleLogger.log(f"Kinematic viscosity: {self.nu} m²/s")
 
@@ -196,17 +203,19 @@ class BoundaryConditions:
             and self.temperature is not None
         ):
             self._as_mach = True
-            self.from_mach_number(self.mach_number, self.pressure, self.temperature)
+            self.from_mach_number(
+                self.mach_number, self.pressure, self.temperature)
         elif (
             self.reynolds_number is not None and self.nu is not None
             and self.pressure is not None
         ):
             self._as_reynolds = True
-            self.from_reynolds_number(self.reynolds_number, self.nu, self.pressure)
+            self.from_reynolds_number(
+                self.reynolds_number, self.nu, self.pressure)
         else:
             SimpleLogger.warning(
-                "Insufficient parameters to determine boundary conditions. No"
-                " parameters initialized automatically."
+                "Insufficient parameters to determine boundary conditions. No "
+                "parameters initialized automatically."
             )
 
         self.bc_details()
@@ -224,14 +233,15 @@ class BoundaryConditions:
             pressure (float): Pressure value.
         """
         SimpleLogger.log(
-            "Velocity provided, setting boundary conditions from it (default variant)."
+            "Velocity provided, setting boundary conditions from it "
+            "(default variant)."
         )
         if velocity is not None:
             self._velocity = velocity
         if pressure is not None:
             self._pressure = pressure
 
-        reynolds_number = (self.velocity * self.chord) / self.nu
+        reynolds_number = (np.linalg.norm(self.velocity) * self.chord) / self.nu
         self._reynolds_number = reynolds_number
 
         if self.temperature is not None:
@@ -257,8 +267,8 @@ class BoundaryConditions:
             temperature (float): Temperature value.
         """
         SimpleLogger.log(
-            "Mach number provided, calculating velocity and setting boundary"
-            " conditions."
+            "Mach number provided, calculating velocity and setting boundary "
+            "conditions."
         )
         if mach_number is not None:
             self._mach_number = mach_number
@@ -268,9 +278,9 @@ class BoundaryConditions:
             self._temperature = temperature
 
         speed_of_sound = np.sqrt(1.4 * 287.05 * self.temperature)
-        self._velocity = mach_number * speed_of_sound
+        self._velocity = np.array([mach_number * speed_of_sound, 0.0, 0.0])
 
-        reynolds_number = (self.velocity * self.chord) / self.nu
+        reynolds_number = (np.linalg.norm(self.velocity) * self.chord) / self.nu
         self._reynolds_number = reynolds_number
 
     def from_reynolds_number(
@@ -280,8 +290,8 @@ class BoundaryConditions:
             pressure: float = None,
     ) -> None:
         """
-        Calculate velocity from Reynolds number if it is not provided directly and set
-        boundary conditions
+        Calculate velocity from Reynolds number if it is not provided directly
+        and set boundary conditions
 
         Args:
             reynolds_number (float): Reynolds number.
@@ -289,8 +299,8 @@ class BoundaryConditions:
             pressure (float): Pressure value.
         """
         SimpleLogger.log(
-            "Reynolds number provided, calculating velocity and setting boundary"
-            " conditions."
+            "Reynolds number provided, calculating velocity and setting "
+            "boundary conditions."
         )
         if reynolds_number is not None:
             self._reynolds_number = reynolds_number
@@ -299,7 +309,7 @@ class BoundaryConditions:
         if pressure is not None:
             self._pressure = pressure
 
-        self._velocity = self.reynolds_number * self.nu / self.chord
+        self._velocity = np.array([self.reynolds_number * self.nu / self.chord, 0.0, 0.0])
 
         if self.temperature is not None:
             speed_of_sound = np.sqrt(1.4 * 287.05 * self.temperature)
@@ -348,9 +358,7 @@ class BoundaryConditions:
         self._pressure *= self.density
         self._kinematic_pressure = True
 
-    def pressure_bc(
-        self,
-    ) -> str:
+    def pressure_bc(self) -> str:
         """
         Generate the formatted string for the '0/p' boundary condition file.
         """
@@ -358,52 +366,104 @@ class BoundaryConditions:
             pressure_value = self.pressure
         else:
             SimpleLogger.warning(
-                "Pressure boundary condition set as absolute pressure, converting"
-                " to kinematic for OpenFOAM."
+                "Pressure boundary condition set as absolute pressure, "
+                "converting to kinematic for OpenFOAM."
             )
             pressure_value = self.pressure / self.density
 
         return p_bc(
-            pressure_value=pressure_value,
+            pressure_value=str(pressure_value),
             setup=self.bc_setup
         )
 
     def turbulence_bc(self) -> dict[str, str]:
         """
-        Generate the formatted string for the turbulence boundary conditions files for
-        the current turbulence model. Supported models: kOmegaSST, kOmegaSSTLM, kEpsilon
-        and SpalartAllmaras.
+        Generate the formatted string for the turbulence boundary conditions
+        files for the current turbulence model. Supported models: kOmegaSST,
+        kOmegaSSTLM, kEpsilon and SpalartAllmaras.
 
         Returns:
-            dict[str, str]: Formatted strings for the turbulence boundary condition
-                files.
+            dict[str, str]: Formatted strings for the turbulence boundary
+                condition files.
         """
-
         model = self._turbulence_model.lower()
+
+        k_inlet_type = self.bc_setup.get("InletK", "fixedValue") or "fixedValue"
+        omega_inlet_type = self.bc_setup.get("InletOmega", "fixedValue") or "fixedValue"
+
+        airfoil_nut = self.bc_setup.get(
+            "AirfoilNut", "nutUSpaldingWallFunction"
+        ) or "nutUSpaldingWallFunction"
+
         if model == "komegasst":
             return {
-                "k": k_bc(k=self.k, setup=self.bc_setup),
-                "omega": omega_bc(omega=self.omega, setup=self.bc_setup),
-                "nut": nut_bc(setup=self.bc_setup)
+                "k": k_bc(
+                    k_value=str(self.k),
+                    inlet_type=k_inlet_type,
+                    intensity=self._turbulence_intensity,
+                    setup=self.bc_setup
+                ),
+                "omega": omega_bc(
+                    omega_value=str(self.omega),
+                    inlet_type=omega_inlet_type,
+                    mixing_length=self.turbulence_length_scale,
+                    setup=self.bc_setup
+                ),
+                "nut": nut_bc(
+                    airfoil_wall_function=airfoil_nut,
+                    setup=self.bc_setup
+                )
             }
         elif model == "komegasstlm":
             return {
-                "k": k_bc(k=self.k, setup=self.bc_setup),
-                "omega": omega_bc(omega=self.omega, setup=self.bc_setup),
-                "nut": nut_bc(setup=self.bc_setup),
-                "gammaInt": gammaInt_bc(gammaInt=1e-5, setup=self.bc_setup),
-                "ReThetat": retheta_bc(reteta=1000, setup=self.bc_setup)
+                "k": k_bc(
+                    k_value=str(self.k),
+                    inlet_type=k_inlet_type,
+                    intensity=self._turbulence_intensity,
+                    setup=self.bc_setup
+                ),
+                "omega": omega_bc(
+                    omega_value=str(self.omega),
+                    inlet_type=omega_inlet_type,
+                    mixing_length=self.turbulence_length_scale,
+                    setup=self.bc_setup
+                ),
+                "nut": nut_bc(
+                    airfoil_wall_function=airfoil_nut,
+                    setup=self.bc_setup
+                ),
+                "gammaInt": gammaInt_bc(
+                    gammaInt="1e-5",
+                    setup=self.bc_setup
+                ),
+                "ReThetat": retheta_bc(
+                    retheta="1000",
+                    setup=self.bc_setup
+                )
             }
         elif model == "kepsilon":
             return {
-                "k": k_bc(k=self.k, setup=self.bc_setup),
-                "epsilon": epsilon_bc(epsilon=self.epsilon, setup=self.bc_setup),
-                "nut": nut_bc(setup=self.bc_setup)
+                "k": k_bc(
+                    k_value=str(self.k),
+                    inlet_type=k_inlet_type,
+                    intensity=self._turbulence_intensity,
+                    setup=self.bc_setup
+                ),
+                "epsilon": epsilon_bc(
+                    epsilon=str(self.epsilon),
+                    setup=self.bc_setup
+                ),
+                "nut": nut_bc(
+                    airfoil_wall_function=airfoil_nut,
+                    setup=self.bc_setup
+                )
             }
         elif model == "spalartallmaras":
-            # Example, add your own function for SpalartAllmaras
             return {
-                "nut": nut_bc(setup=self.bc_setup)
+                "nut": nut_bc(
+                    airfoil_wall_function=airfoil_nut,
+                    setup=self.bc_setup
+                )
             }
         else:
             raise ValueError(f"Unsupported turbulence model: {model}")
@@ -425,20 +485,26 @@ class BoundaryConditions:
         """
         SimpleLogger.log("Boundary Conditions Details:")
         if self._as_velocity:
-            SimpleLogger.log("Boundary conditions define directly from velocity")
+            SimpleLogger.log("Boundary conditions defined from velocity")
         elif self._as_mach:
-            SimpleLogger.log("Boundary conditions define from Mach number")
+            SimpleLogger.log("Boundary conditions defined from Mach number")
         elif self._as_reynolds:
-            SimpleLogger.log("Boundary conditions define from Reynolds number")
+            SimpleLogger.log(
+                "Boundary conditions defined from Reynolds number"
+            )
 
         SimpleLogger.log(
             "Main parameters: \n"
             f"                  Velocity: {self.velocity} m/s\n"
         )
         if self._kinematic_pressure:
-            SimpleLogger.log(f"Pressure: {self.pressure} (kinematic) m²/s²\n")
+            SimpleLogger.log(
+                f"                  Pressure: {self.pressure} (kinematic) m²/s²"
+            )
         else:
-            SimpleLogger.log(f"Pressure: {self.pressure} Pa\n")
+            SimpleLogger.log(
+                f"                  Pressure: {self.pressure} Pa"
+            )
 
         SimpleLogger.log(
             "Additional parameters: \n"
@@ -448,7 +514,7 @@ class BoundaryConditions:
         )
         SimpleLogger.log(
             "Fluid parameters: \n"
-            f"                  Kinematic Viscosity: {self.nu} m²/s \n"
+            f"                  Kinematic Viscosity: {self.nu} m²/s\n"
             f"                  Density: {self.density} kg/m³\n"
             f"                  Temperature: {self.temperature} K\n"
         )
@@ -461,7 +527,6 @@ class BoundaryConditions:
         Args:
             output_path (Path): The path to the output CSV file.
         """
-        # Determine definition method
         if self._as_velocity:
             definition_method = "Velocity"
         elif self._as_mach:
@@ -471,17 +536,14 @@ class BoundaryConditions:
         else:
             definition_method = "Unknown"
 
-        # Calculate velocity magnitude
         if isinstance(self.velocity, np.ndarray):
             velocity_magnitude = np.linalg.norm(self.velocity)
         else:
             velocity_magnitude = self.velocity
 
-        # Prepare pressure info
         pressure_unit = "m²/s²" if self._kinematic_pressure else "Pa"
         pressure_value = self.pressure if self.pressure is not None else "N/A"
 
-        # Determine turbulence parameter
         if self.turbulence_model.lower() == "komegasst":
             turb_param = "omega"
             turb_unit = "1/s"
@@ -495,7 +557,6 @@ class BoundaryConditions:
             turb_unit = "-"
             turb_value = "N/A"
 
-        # Create data rows
         data = [
             ["Parameter", "Unit", "Value"],
             ["Definition Method", "-", definition_method],
@@ -505,9 +566,12 @@ class BoundaryConditions:
              self.mach_number if self.mach_number is not None else "N/A"],
             ["Reynolds Number", "-",
              self.reynolds_number if self.reynolds_number is not None else "N/A"],
-            ["Altitude", "m", self.altitude if self.altitude is not None else "N/A"],
-            ["Kinematic Viscosity", "m2/s", self.nu if self.nu is not None else "N/A"],
-            ["Density", "kg/m3", self.density if self.density is not None else "N/A"],
+            ["Altitude", "m",
+             self.altitude if self.altitude is not None else "N/A"],
+            ["Kinematic Viscosity", "m2/s",
+             self.nu if self.nu is not None else "N/A"],
+            ["Density", "kg/m3",
+             self.density if self.density is not None else "N/A"],
             ["Temperature", "K",
              self.temperature if self.temperature is not None else "N/A"],
             ["Chord Length", "m", self.chord],
@@ -518,7 +582,6 @@ class BoundaryConditions:
             [turb_param, turb_unit, turb_value]
         ]
 
-        # Write to CSV
         with open(output_path, 'w', newline='') as csvfile:
             writer = csv.writer(csvfile)
             writer.writerows(data)
@@ -533,6 +596,8 @@ class BoundaryConditions:
         Returns:
             np.ndarray: The current velocity vector.
         """
+        if isinstance(self._velocity, (int, float)):
+            return np.array([self._velocity, 0.0, 0.0])
         return self._velocity
 
     @property
@@ -628,13 +693,12 @@ class BoundaryConditions:
     @property
     def k(self) -> float:
         """
-        Get the turbulence kinetic energy.
+        Get the turbulent kinetic energy.
 
         Returns:
-            float: The turbulence kinetic energy.
+            float: The turbulent kinetic energy.
         """
         U_inf = np.linalg.norm(self.velocity)
-
         k = 1.5 * (U_inf * self.turbulence_intensity) ** 2
         return k
 
@@ -647,8 +711,8 @@ class BoundaryConditions:
             float: The specific dissipation rate.
         """
         C_mu = 0.09
-
-        omega = np.sqrt(self.k) / (C_mu ** 0.25 * self.turbulence_length_scale)
+        omega = np.sqrt(self.k) / (C_mu ** 0.25
+                                   * self.turbulence_length_scale)
         return omega
 
     @property
@@ -660,8 +724,8 @@ class BoundaryConditions:
             float: The dissipation rate.
         """
         C_mu = 0.09
-
-        epsilon = (C_mu ** 0.75) * (self.k ** 1.5) / self.turbulence_length_scale
+        epsilon = (C_mu ** 0.75) * (self.k ** 1.5) / (
+            self.turbulence_length_scale)
         return epsilon
 
     @property

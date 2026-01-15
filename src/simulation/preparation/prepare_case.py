@@ -47,11 +47,8 @@ def prepare_case():
     setup_file = args.setup_file
 
     setup = InitialSettingsReader(setup_file)
-
     airfoil_settings = setup.airfoil_settings
-
     designation = airfoil_settings.get("Designation")
-
     case_name = args.case_name if args.case_name is not None else f"case_{designation}"
 
     if bool(airfoil_settings.get("GenerateNACA")):
@@ -90,7 +87,11 @@ def prepare_case():
 
     angle_of_attack = airfoil_settings.get("AngleOfAttack", 0.0)
     airfoil.set_angle_of_attack(angle_of_attack)
-    airfoil.plot(title=f"Airfoil: {designation} at AoA: {angle_of_attack}°", save_path='plots', show=False)
+    airfoil.plot(
+        title=f"Airfoil: {designation} at AoA: {angle_of_attack}°",
+        save_path='plots',
+        show=False
+    )
 
     SimpleLogger.log(f"Preparing case '{case_name}' in '{working_dir}'")
     prepare_openfoam_case(
