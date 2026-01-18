@@ -14,8 +14,8 @@ from simulation.openfoam.system_dir import (
 from simulation.openfoam.constant_dir import transport_properties_dict, \
     turbulence_properties_dict
 from simulation.openfoam.boundary_condition import BoundaryConditions
-from templates.airfoil_template import Airfoil
-from templates.initial_settings_template import Settings
+from templates.python_template_files.airfoil_template import Airfoil
+from templates.python_template_files.initial_settings_template import Settings
 from utils.logger import SimpleLogger
 
 

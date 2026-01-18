@@ -14,17 +14,22 @@ docker build -t openfoam-airfoil .
 docker run -it openfoam-airfoil
 ```
 
-This will drop you into a bash shell with OpenFOAM sourced and ready to use.
+### Run example case
+```powershell
+cd /app/src/simulation/run/
+bash ./run_case.sh --working-dir /app/cases --setup-file /app/examples/naca0012_study/aoa_5.json --case-name aoa_5
+```
 
-## Files
-- `Dockerfile`: Builds the Ubuntu + OpenFOAM environment.
-- `.dockerignore`: Prevents unnecessary files from being added to the image.
-- `README.md`: Project instructions.
+# Documentation
 
-## Next Steps
-- Add scripts for airfoil geometry generation.
-- Automate OpenFOAM case setup and simulation.
 
----
 
-For more information on OpenFOAM, visit: https://openfoam.org/
+# Requirements
+
+- Python 3.13
+- Poetry for dependency management
+- Docker
+
+# Contact
+
+GitHub: [Arek Drabik](https://github.com/SethAlevy)

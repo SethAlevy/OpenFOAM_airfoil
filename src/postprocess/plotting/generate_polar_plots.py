@@ -2,7 +2,7 @@ import argparse
 import numpy as np
 import pandas as pd
 from pathlib import Path
-from templates.plot_config import DEFAULT_PLOT_CONFIG
+from templates.python_template_files.plot_config import DEFAULT_PLOT_CONFIG
 from utils.utilities import interpolate_airfoil_coefficients
 from postprocess.plotting.matplotlib_plots import (
     plot_lift_curve, plot_drag_curve, plot_drag_polar, plot_lift_to_drag_vs_alpha

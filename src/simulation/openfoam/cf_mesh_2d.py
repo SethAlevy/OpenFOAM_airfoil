@@ -1,7 +1,7 @@
 import numpy as np
 from pathlib import Path
-from templates.airfoil_template import Airfoil
-from templates.initial_settings_template import Settings
+from templates.python_template_files.airfoil_template import Airfoil
+from templates.python_template_files.initial_settings_template import Settings
 from simulation.openfoam.block_mesh import get_bounding_box
 from templates.openfoam_template_files.cf_mesh_files import generate_cf_mesh_dict
 from utils.geometry import export_domain_to_fms, create_stl_bounding_box

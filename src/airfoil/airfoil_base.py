@@ -3,7 +3,7 @@ from pathlib import Path
 import utils.utilities as ut
 import utils.geometry as geo
 from utils.logger import SimpleLogger
-from templates.airfoil_template import Airfoil
+from templates.python_template_files.airfoil_template import Airfoil
 from postprocess.plotting.matplotlib_plots import plot_airfoil
 
 
@@ -30,36 +30,21 @@ class BaseAirfoil(Airfoil):
         self,
         source: str = "naca",  # "naca" or "file"
         designation: str = None,
-        name: str = None,
         chord_length: float = None,
         resolution: int = None,
         setup=None
     ):
-        default_config = {
-            "Designation": "0012",
-            "Name": "b737d",
-            "Chord": 1.0,
-            "Resolution": 200,
-            "AngleOfAttack": 0.0
-        }
-
-        airfoil_config = setup.airfoil_settings if setup is not None else default_config
+        airfoil_config = setup.airfoil_settings if setup is not None else {}
 
         self.source = source
-        self.designation = ut.resolve_value(
-            designation, airfoil_config, "Designation", "0012"
-        )
         self.name = ut.resolve_value(
-            name, airfoil_config, "Name", "b737d"
+            designation, airfoil_config, "Name", designation
         )
         self._chord = ut.resolve_value(
-            chord_length, airfoil_config, "Chord", 1.0
+            chord_length, airfoil_config, "Chord", chord_length
         )
         self.resolution = ut.resolve_value(
-            resolution, airfoil_config, "Resolution", 200
-        )
-        self.angle_of_attack = ut.resolve_value(
-            None, airfoil_config, "AngleOfAttack", 0.0
+            resolution, airfoil_config, "Resolution", resolution
         )
         self._alpha = 0.0
 
@@ -67,9 +52,9 @@ class BaseAirfoil(Airfoil):
         self.x_alpha_zero = self.x.copy()
 
         if self.source == "naca":
-            self.extract_digits()
+            self._extract_digits()
         elif self.source == "file":
-            self._get_airfoil(self.name)
+            self.get_airfoil(self.designation)
         else:
             raise ValueError("Unknown airfoil source type.")
 

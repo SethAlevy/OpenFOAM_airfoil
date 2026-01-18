@@ -4,7 +4,7 @@ import utils.physics as ph
 import utils.utilities as ut
 from pathlib import Path
 from utils.logger import SimpleLogger
-from templates.initial_settings_template import Settings
+from templates.python_template_files.initial_settings_template import Settings
 from templates.openfoam_template_files.boundary_files import (
     U_bc,
     p_bc,
@@ -74,13 +74,18 @@ class BoundaryConditions:
             setup (Settings): Settings object containing simulation and airfoil
                 settings.
         """
+        if setup is not None:
+            self.bc_setup = setup.simulation_settings.get("BoundaryConditions", {})
+            self.fluid_setup = setup.simulation_settings.get("Fluid", {})
+            self.turbulence_setup = setup.simulation_settings.get(
+                "TurbulenceProperties", {})
+            self.airfoil_settings = setup.airfoil_settings
+        else:
+            self.bc_setup = {}
+            self.fluid_setup = {}
+            self.turbulence_setup = {}
+            self.airfoil_settings = {}
 
-        self.bc_setup = setup.simulation_settings.get("BoundaryConditions", {})
-        self.fluid_setup = setup.simulation_settings.get("Fluid", {})
-        self.turbulence_setup = setup.simulation_settings.get(
-            "TurbulenceProperties", {})
-
-        # Resolve kinematic_pressure flag
         self._kinematic_pressure = ut.resolve_value(
             kinematic_pressure, self.bc_setup, "KinematicPressure", False
         )
@@ -90,24 +95,25 @@ class BoundaryConditions:
                 "pressure."
             )
 
-        self._velocity = ut.resolve_value(velocity, self.bc_setup, "Velocity", None)
+        self._velocity = ut.resolve_value(velocity, self.bc_setup, "Velocity", velocity)
         self._mach_number = ut.resolve_value(
-            mach_number, self.bc_setup, "MachNumber", None
+            mach_number, self.bc_setup, "MachNumber", mach_number
         )
         self._reynolds_number = ut.resolve_value(
-            reynolds_number, self.bc_setup, "ReynoldsNumber", None
+            reynolds_number, self.bc_setup, "ReynoldsNumber", reynolds_number
         )
-        self._density = ut.resolve_value(density, self.fluid_setup, "Density", None)
+        self._density = ut.resolve_value(density, self.fluid_setup, "Density", density)
         self._temperature = ut.resolve_value(
-            temperature, self.fluid_setup, "Temperature", None
+            temperature, self.fluid_setup, "Temperature", temperature
         )
-        self._altitude = ut.resolve_value(altitude, self.fluid_setup, "Altitude", None)
-        self._nu = ut.resolve_value(nu, self.fluid_setup, "KinematicViscosity", None)
-        self._pressure = ut.resolve_value(pressure, self.bc_setup, "Pressure", None)
+        self._altitude = ut.resolve_value(
+            altitude, self.fluid_setup, "Altitude", altitude
+        )
+        self._nu = ut.resolve_value(nu, self.fluid_setup, "KinematicViscosity", nu)
+        self._pressure = ut.resolve_value(pressure, self.bc_setup, "Pressure", pressure)
 
-        # Resolve turbulence model
         self._turbulence_model = ut.resolve_value(
-            turbulence_model, self.turbulence_setup, "Model", None
+            turbulence_model, self.turbulence_setup, "Model", turbulence_model
         )
         if self._turbulence_model is None:
             SimpleLogger.warning(
@@ -115,12 +121,14 @@ class BoundaryConditions:
                 "kOmegaSST."
             )
             self._turbulence_model = "kOmegaSST"
-            turbulence_intensity = 0.0003
+            turbulence_intensity = 0.0005
             turbulence_length_scale = 0.015
 
-        # Resolve turbulence parameters
         self._turbulence_intensity = ut.resolve_value(
-            turbulence_intensity, self.turbulence_setup, "TurbulenceIntensity", None
+            turbulence_intensity,
+            self.turbulence_setup,
+            "TurbulenceIntensity",
+            turbulence_intensity
         )
         if turbulence_intensity is not None:
             self.turbulence_setup["TurbulenceIntensity"] = turbulence_intensity
@@ -129,7 +137,7 @@ class BoundaryConditions:
             turbulence_length_scale,
             self.turbulence_setup,
             "TurbulenceLengthScaleChord",
-            None
+            turbulence_length_scale
         )
         if turbulence_length_scale is not None:
             self.turbulence_setup["TurbulenceLengthScaleChord"] = (
@@ -137,7 +145,7 @@ class BoundaryConditions:
             )
 
         self._chord = ut.resolve_value(
-            chord_length, setup.airfoil_settings, "Chord", None
+            chord_length, self.airfoil_settings, "Chord", chord_length
         )
         if self._chord is None:
             raise ValueError(
@@ -190,6 +198,12 @@ class BoundaryConditions:
                 self.temperature, self.density)
 
             SimpleLogger.log(f"Kinematic viscosity: {self.nu} m²/s")
+        if self.nu is None:
+            self._nu = 1.4607e-5
+            SimpleLogger.warning("Kinematic viscosity not provided, assuming 1.4607e-5 ")
+        if self.temperature is None:
+            self._temperature = 288.15
+            SimpleLogger.warning("Temperature not provided, assuming 288.15 K")
 
         self._as_velocity = False
         self._as_mach = False

@@ -2,7 +2,7 @@ import argparse
 from typing import List
 from pathlib import Path
 from utils.logger import SimpleLogger
-from templates.plot_config import DEFAULT_PLOT_CONFIG
+from templates.python_template_files.plot_config import DEFAULT_PLOT_CONFIG
 from postprocess.plotting.matplotlib_plots import (plot_residuals, plot_velocity_profiles,
                                                    plot_force_coefficients)
 from postprocess.plotting.pyvista_plots import (plot_streamlines, plot_velocity_contours,

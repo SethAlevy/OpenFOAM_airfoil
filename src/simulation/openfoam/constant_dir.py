@@ -1,5 +1,5 @@
 from pathlib import Path
-from templates.initial_settings_template import Settings
+from templates.python_template_files.initial_settings_template import Settings
 from templates.openfoam_template_files.constant_files import (
     generate_transport_properties_dict,
     generate_turbulence_properties_dict,
@@ -44,8 +44,7 @@ def turbulence_properties_dict(setup: Settings, output_path: Path) -> None:
     kappa = turbulence_settings.get("Kappa", 0.41)
     E = turbulence_settings.get("E", 9.8)
 
-    turb_config = setup.simulation_settings.get("Turbulence", {})
-    model_coeffs_dict = turb_config.get(model, {})
+    model_coeffs_dict = turbulence_settings.get(model, {})
     model_coeffs_str = model_coeffs_section(model_coeffs_dict, model)
 
     content = generate_turbulence_properties_dict(

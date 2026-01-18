@@ -2,8 +2,8 @@
 BlockMesh generation utilities for OpenFOAM.
 """
 from pathlib import Path
-from templates.airfoil_template import Airfoil
-from templates.initial_settings_template import Settings
+from templates.python_template_files.airfoil_template import Airfoil
+from templates.python_template_files.initial_settings_template import Settings
 from templates.openfoam_template_files.block_mesh_files import (
     generate_block_mesh_dict
 )

@@ -1,6 +1,6 @@
 import numpy as np
 from pathlib import Path
-from templates.initial_settings_template import Settings
+from templates.python_template_files.initial_settings_template import Settings
 from simulation.openfoam.boundary_condition import BoundaryConditions
 from templates.openfoam_template_files.system_files import (
     generate_control_dict,
@@ -98,7 +98,7 @@ def fv_solution_dict(setup: Settings, output_path: Path) -> None:
     rethetat_tolerance = re_thetat_setup.get("Tolerance", 1e-8)
     rethetat_rel_tol = re_thetat_setup.get("RelTol", 0.1)
 
-    gammaint_setup = fv_solution_setup.get("gammaInt", {})
+    gammaint_setup = fv_solution_setup.get("GammaInt", {})
     gammaint_solver = gammaint_setup.get("Solver", "smoothSolver")
     gammaint_preconditioner = gammaint_setup.get("Preconditioner", None)
     gammaint_smoother = gammaint_setup.get("Smoother", "symGaussSeidel")
@@ -106,19 +106,19 @@ def fv_solution_dict(setup: Settings, output_path: Path) -> None:
     gammaint_rel_tol = gammaint_setup.get("RelTol", 0.1)
 
     n_non_ortho_correctors = fv_solution_setup.get(
-        "n_non_ortho_correctors", 2)
+        "N_non_ortho_correctors", 2)
 
     relaxation_setup = fv_solution_setup.get("RelaxationFactors", {})
     relaxation_p = relaxation_setup.get("p", 0.3)
     relaxation_U = relaxation_setup.get("U", 0.7)
     relaxation_k = relaxation_setup.get("k", 0.7)
-    relaxation_omega = relaxation_setup.get("omega", 0.7)
-    relaxation_epsilon = relaxation_setup.get("epsilon", 0.7)
-    relaxation_nuTilda = relaxation_setup.get("nuTilda", 0.7)
-    relaxation_reThetat = relaxation_setup.get("reThetat", 0.4)
-    relaxation_gammaInt = relaxation_setup.get("gammaInt", 0.4)
+    relaxation_omega = relaxation_setup.get("Omega", 0.7)
+    relaxation_epsilon = relaxation_setup.get("Epsilon", 0.7)
+    relaxation_nuTilda = relaxation_setup.get("NuTilda", 0.7)
+    relaxation_reThetat = relaxation_setup.get("ReThetat", 0.4)
+    relaxation_gammaInt = relaxation_setup.get("GammaInt", 0.4)
 
-    cache = fv_solution_setup.get("cache", "grad(U);")
+    cache = fv_solution_setup.get("Cache", "grad(U);")
 
     content = generate_fv_solution_dict(
         p_solver=p_solver,
@@ -172,7 +172,7 @@ def fv_schemes_dict(setup: Settings, output_path: Path) -> None:
     """
     fv_schemes_setup = setup.simulation_settings.get("FvSchemes", {})
 
-    time_schemes = fv_schemes_setup.get("ddtSchemes", {})
+    time_schemes = fv_schemes_setup.get("DdtSchemes", {})
     time_scheme_default = time_schemes.get("Default", "steadyState")
 
     div_schemes = fv_schemes_setup.get("DivSchemes", {})

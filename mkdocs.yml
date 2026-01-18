@@ -1,0 +1,83 @@
+site_name: OpenFOAM Airfoil Simulations
+site_description: Documentation for the OpenFOAM Airfoil g+Generation and Simulation Package
+repo_url: https://github.com/SethAlevy/OpenFOAM_airfoil
+edit_uri: blob/main/docs/
+strict: false
+
+theme:
+  name: material
+  font:
+    text: Space Grotesk
+    code: JetBrains Mono
+  features:
+    - content.code.copy
+    - navigation.tabs
+    - navigation.top
+    - navigation.sections
+    - navigation.expand
+    - search.highlight
+    - search.suggest
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Dark mode
+      primary: amber
+      accent: deep orange
+    - scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Light mode
+      primary: blue gray
+      accent: deep purple
+
+nav:
+  - Background and introduction (eng): openfoam_airfoil.md
+  - Code documentation: index.md
+#  - Podstawy teoretyczne (pl): openfoam_airfoil_pl.md
+
+plugins:
+  - search
+  - git-revision-date-localized:
+      fallback_to_build_date: true
+  - mkdocstrings:
+      handlers:
+        python:
+          options:
+            docstring_style: google
+            show_root_heading: true
+            show_source: false
+            merge_init_into_class: true
+            filters:
+              - "!^__init__$"
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.emoji
+  - pymdownx.tabbed
+  - pymdownx.tasklist
+  - pymdownx.arithmatex
+  - toc:
+      permalink: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/SethAlevy
+    - icon: fontawesome/solid/envelope
+      link: mailto:arek.drabik1453@gmail.com
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js

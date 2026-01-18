@@ -52,7 +52,7 @@
                     "YMax": 0.4,
                     "CellSize": 0.00225
                 },
-                "NearField": {
+                "nearField": {
                     "Type": "box",
                     "XMin": -0.05,
                     "XMax": 0.4,
@@ -70,7 +70,7 @@
             "Solver": "simpleFoam",
             "StartFrom": "startTime",
             "StartTime": 0,
-            "EndTime": 3000,
+            "EndTime": 6000,
             "DeltaT": 1,
             "WriteControl": "timeStep",
             "WriteInterval": 500,
@@ -89,25 +89,11 @@
                 "Tolerance": 1e-05,
                 "RelTol": 0.1
             },
-            "gammaInt": {
-                "Solver": "smoothSolver",
-                "Smoother": "symGaussSeidel",
-                "Tolerance": 1e-05,
-                "RelTol": 0.2
-            },
-            "ReThetat": {
-                "Solver": "smoothSolver",
-                "Smoother": "symGaussSeidel",
-                "Tolerance": 1e-06,
-                "RelTol": 0.3
-            },
             "RelaxationFactors": {
                 "p": 0.3,
                 "U": 0.6,
                 "k": 0.6,
-                "omega": 0.6,
-                "reThetat": 0.3,
-                "gammaInt": 0.2
+                "omega": 0.6
             }
         },
         "FvSchemes": {
@@ -138,8 +124,8 @@
         "TurbulenceProperties": {
             "Turbulence": "on",
             "Model": "kOmegaSST",
-            "TurbulenceIntensity": 0.001,
-            "TurbulenceLengthScaleChord": 0.015,
+            "TurbulenceIntensity": 0.0005,
+            "TurbulenceLengthScaleChord": 0.01,
             "kOmegaSSTLM": {
                 "Cmu": 0.09
             },

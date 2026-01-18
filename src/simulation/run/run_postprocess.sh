@@ -12,36 +12,35 @@ if [ -z "$setup_file" ]; then
     exit 1
 fi
 
-# Check if boundary_conditions.csv exists
 bc_csv="boundary_conditions_summary.csv"
 if [ ! -f "$bc_csv" ]; then
     echo "Error: boundary_conditions_summary.csv not found in case directory"
     exit 1
 fi
 
-# Extract solver from system/controlDict
 if [ -f "system/controlDict" ]; then
     solver=$(foamDictionary system/controlDict -entry application -value 2>/dev/null || echo "simpleFoam")
 else
     solver="simpleFoam"
 fi
 
-# Extract parameters from CSV file
 chord=$(cat "$setup_file" | tr -d '\r' | jq -r '.Airfoil.Chord // 1.0')
 density=$(grep "^Density," "$bc_csv" | cut -d',' -f3)
 velocity=$(grep "^Velocity," "$bc_csv" | cut -d',' -f3)
 
-# Extract angle of attack from JSON (not in CSV)
 aoa=$(cat "$setup_file" | tr -d '\r' | jq -r '.Airfoil.AngleOfAttack // 0.0')
 
-# For 2D simulation, use unit span
-z_span=1.0
+z_min=$(cat "$setup_file" | tr -d '\r' | jq -r '.Mesh.BoundingBox.ZMin // null')
+z_max=$(cat "$setup_file" | tr -d '\r' | jq -r '.Mesh.BoundingBox.ZMax // null')
+if [ "$z_min" = "null" ] || [ "$z_max" = "null" ]; then
+    z_span=1.0
+else
+    z_span=$(echo "$z_max - $z_min" | bc -l)
+fi
 airfoil_patch="airfoil"
 
-# Calculate reference area (chord * unit span for 2D)
 Aref=$(echo "$chord * $z_span" | bc -l)
 
-# Convert angle of attack to radians for lift/drag direction
 aoa_rad=$(echo "$aoa * 3.14159265359 / 180" | bc -l)
 lift_x=$(echo "-1 * s($aoa_rad)" | bc -l)
 lift_y=$(echo "c($aoa_rad)" | bc -l)

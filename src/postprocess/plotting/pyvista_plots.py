@@ -6,7 +6,7 @@ import pyvista as pv
 from pathlib import Path
 from typing import List, Literal, Optional
 from utils.logger import SimpleLogger as logger
-from templates.plot_config import DEFAULT_PLOT_CONFIG, PlotConfig
+from templates.python_template_files.plot_config import DEFAULT_PLOT_CONFIG, PlotConfig
 
 warnings.filterwarnings("ignore", category=UserWarning, module="pyvista.jupyter")
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="pyvista")

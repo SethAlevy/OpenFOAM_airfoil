@@ -2,7 +2,7 @@
 OpenFOAM snappyHexMesh dictionary template generation.
 """
 
-from templates.airfoil_template import Airfoil
+from templates.python_template_files.airfoil_template import Airfoil
 
 
 def bool_to_foam(value: bool) -> str:

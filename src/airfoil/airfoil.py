@@ -200,7 +200,7 @@ class NACA5(BaseAirfoil):
             setup=setup
         )
 
-    def extract_digits(self):
+    def _extract_digits(self):
         """
         Extract the digits from the NACA 5-digit designation.
 
@@ -365,7 +365,7 @@ class UIUCAirfoil(BaseAirfoil):
     extract them from the Settings object (initial settings json file).
 
     Args:
-        name (str): Name of the airfoil in UIUC database, e.g., 'b737d'
+        Designation (str): Name of the airfoil in UIUC database, e.g., 'b737d'
         chord_length (float): Chord length of the airfoil in meters.
         resolution (int): Number of points to discretize the airfoil surface along.
         setup (Settings): Settings object to extract initial parameters from.
@@ -373,20 +373,20 @@ class UIUCAirfoil(BaseAirfoil):
 
     def __init__(
         self,
-        name: str = None,
+        designation: str = None,
         chord_length: float = None,
         resolution: int = None,
         setup=None
     ):
         super().__init__(
             source="file",
-            name=name,
+            designation=designation,
             chord_length=chord_length,
             resolution=resolution,
             setup=setup
         )
 
-    def _get_airfoil(self, designation: str) -> None:
+    def get_airfoil(self, designation: str) -> None:
         """
         Get airfoil coordinates from UIUC database, resample coordinates, calculate
         mean camber line and thickness distribution.

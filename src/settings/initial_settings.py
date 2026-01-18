@@ -106,10 +106,6 @@ class InitialSettingsReader():
         return {
             "Airfoil": {
                 "Designation": "",
-                "GenerateNACA": False,
-                "DownloadUIUC": False,
-                "LoadFromFile": False,
-                "LoadFilePath": "",
                 "AngleOfAttack": 0.0,
                 "Chord": 1.0,
                 "Resolution": 200
@@ -126,46 +122,70 @@ class InitialSettingsReader():
                     "Nz": 1
                 },
                 "BlockMesh": {
-                    "BaseCellSize": 0.0,
                     "NX": 0,
                     "NY": 0,
-                    "NZ": 0
+                    "NZ": 0,
+                    "Scale": 0
                 },
                 "CfMesh": {
                     "MaxCellSize": 0.05,
-                    "ZMin": -0.01,
-                    "ZMax": 0.01,
                     "LocalRefinement": {
-                        "Airfoil": {
+                        "airfoil": {
                             "Level": 0,
-                            "Thickness": 0.02
+                            "CellSize": 0.0,
+                            "Thickness": 0.0
                         }
                     },
                     "BoundaryLayers": {
-                        "Airfoil": {
+                        "airfoil": {
                             "NLayers": 0,
-                            "ThicknessRatio": 1.2,
-                            "MaxFirstLayerThickness": 0.001,
+                            "ThicknessRatio": 0.0,
+                            "MaxFirstLayerThickness": 0.0,
                             "AllowedDiscontinuity": 1
                         }
                     },
                     "ObjectRefinements": {
-                        "SphereTrailingEdge": {
+                        "sphereTrailingEdge": {
                             "Type": "sphere",
-                            "Radius": 0.1,
-                            "CellSize": 0.01
+                            "Radius": 0.0,
+                            "CellSize": 0.0
                         },
-                        "SphereLeadingEdge": {
+                        "sphereLeadingEdge": {
                             "Type": "sphere",
-                            "Radius": 0.1,
-                            "CellSize": 0.01
+                            "Radius": 0.0,
+                            "CellSize": 0.0
                         },
-                        "AirfoilBox": {
+                        "airfoilBox": {
                             "Type": "box",
-                            "XMin": -0.5,
-                            "YMin": -0.5,
-                            "YMax": 0.5,
-                            "CellSize": 0.02
+                            "XMin": -0.0,
+                            "XMax"
+                            "YMin": -0.0,
+                            "YMax": 0.0,
+                            "CellSize": 0.0
+                        },
+                        "outerShell": {
+                            "Type": "box",
+                            "XMin": -0.0,
+                            "XMax"
+                            "YMin": -0.0,
+                            "YMax": 0.0,
+                            "CellSize": 0.0
+                        },
+                        "nearShell": {
+                            "Type": "box",
+                            "XMin": -0.0,
+                            "XMax"
+                            "YMin": -0.0,
+                            "YMax": 0.0,
+                            "CellSize": 0.0
+                        },
+                        "nearField": {
+                            "Type": "box",
+                            "XMin": -0.0,
+                            "XMax"
+                            "YMin": -0.0,
+                            "YMax": 0.0,
+                            "CellSize": 0.0
                         }
                     }
                 },
@@ -218,67 +238,122 @@ class InitialSettingsReader():
                 }
             },
             "Simulation": {
-                "CaseName": "",
                 "PrintLogs": True,
                 "ControlDict": {
                     "Solver": "",
                     "StartFrom": "",
                     "StartTime": 0,
+                    "StopAt": "",
                     "EndTime": 0,
                     "DeltaT": 0,
-                    "WriteControl": "",
+                    "PurgeWrite": 0,
                     "WriteInterval": 0,
-                    "PurgingInterval": 0
+                    "WriteControl": "",
+                    "WriteFormat": "",
+                    "WritePrecision": 0,
+                    'WriteCompression': "off",
+                    "TimeFormat": "",
+                    "TImePrecision": 0,
+                    "RUnTimeModifiable": True
                 },
                 "FvSolution": {
-                    "k": {
+                    "p": {
                         "Solver": "",
+                        "Preconditioner": "",
                         "Smoother": "",
-                        "Tolerance": 0.0,
+                        "Tolerance": 0,
                         "RelTol": 0.0
                     },
-                    "Omega": {
+                    "U": {
                         "Solver": "",
+                        "Preconditioner": "",
                         "Smoother": "",
-                        "Tolerance": 0.0,
+                        "Tolerance": 0,
                         "RelTol": 0.0
-                    }
+                    },
+                    "Turbulence": {
+                        "Solver": "",
+                        "Preconditioner": "",
+                        "Smoother": "",
+                        "Tolerance": 0,
+                        "RelTol": 0.0
+                    },
+                    'ReThetat': {
+                        "Solver": "",
+                        "Preconditioner": "",
+                        "Smoother": "",
+                        "Tolerance": 0,
+                        "RelTol": 0.0
+                    },
+                    "GammaInt": {
+                        "Solver": "",
+                        "Preconditioner": "",
+                        "Smoother": "",
+                        "Tolerance": 0,
+                        "RelTol": 0.0
+                    },
+                    "RelaxationFactors": {
+                        "p": 0.0,
+                        "U": 0.0,
+                        "k": 0.0,
+                        "Omega": 0.0,
+                        "Epsilon": 0.0,
+                        "NuTilda": 0.0,
+                        "ReThetat": 0.0,
+                        "GammaInt": 0.0
+
+                    },
+                    "N_nonOrthogonalCorrectors": 0,
+                    "Cache": ""
                 },
                 "FvSchemes": {
+                    "DdtSchemes": {
+                        "Default": ""
+                    },
                     "DivSchemes": {
-                        "Default": "Gauss upwind",
-                        "DivPhiU": "Gauss upwind",
-                        "DivPhiK": "Gauss upwind",
-                        "DivPhiEpsilon": "Gauss upwind",
-                        "DivPhiOmega": "Gauss upwind"
+                        "Default": "",
+                        "DivPhiU": "",
+                        "DivPhiK": "",
+                        "DivPhiEpsilon": "",
+                        "DivPhiOmega": "",
+                        "DivNuTilda": "",
                     },
                     "LaplacianSchemes": {
-                        "Default": "Gauss linear corrected"
+                        "Default": ""
                     },
                     "InterpolationSchemes": {
-                        "Default": "linear"
+                        "Default": ""
                     },
                     "SnGradSchemes": {
-                        "Default": "corrected"
+                        "Default": ""
                     },
-                    "DistanceSchemes": {
-                        "WallDist": "meshWave"
+                    "WallDistSchemes": {
+                        "Default": ""
                     }
                 },
                 "Decomposition": {
                     "Method": "",
                     "NumberOfSubdomains": 0
                 },
-                "SurfaceFeatureExtract": {
-                    "IncludedAngle": 150
+                "ExtrudeMesh": {
+                    "SourceCease": "",
+                    "SourcePatches": [],
+                    "FlipNormals": False,
+                    "ExposedPatchName": "",
+                    "ExtrudeModel": "",
+                    "nLayers": 0,
+                    "ExpansionRatio": 0.0,
+                    "PreservePatches": False,
+                    "MergePatchFaces": False,
+                    "MergeFaces": False
                 },
                 "TurbulenceProperties": {
                     "Turbulence": "",
-                    "Model": "",
+                    "Model": "kOmegaSST",
                     "Kappa": 0.0,
                     "E": 0.0,
                     "TurbulenceIntensity": 0.0,
-                    "TurbulenceLengthScale": 0.0,
+                    "TurbulenceLengthScaleChord": 0.0,
                     "kOmegaSST": {
                         "betaStar": 0.0,
                         "a1": 0.0,
@@ -299,18 +374,23 @@ class InitialSettingsReader():
                         "C2Epsilon": 0.0,
                         "SigmaK": 0.0,
                         "SigmaEpsilon": 0.0
-                    }
+                    },
+                "SimulationType": "RAS",
+                "PrintCoeffs": "on",
                 },
                 "Fluid": {
                     "KinematicViscosity": 0.0,
                     "Density": 0.0,
-                    "Temperature": 0.0
+                    "Temperature": 0.0,
+                    "Altitude": 0.0,
+                    "TransportModel": "Newtonian"
                 },
                 "BoundaryConditions": {
                     "Velocity": 0.0,
                     "Pressure": 0.0,
                     "MachNumber": 0.0,
                     "ReynoldsNumber": 0.0,
+                    "KinematicPressure": False,
                     "InletPatchName": "",
                     "OutletPatchName": "",
                     "LowerWallPatchName": "",

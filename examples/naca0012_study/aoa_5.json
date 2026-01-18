@@ -14,8 +14,8 @@
         "BoundingBox": {
             "InletDistance": 10.0,
             "OutletDistance": 20.0,
-            "TopDistance": 7.0,
-            "BottomDistance": 7.0,
+            "TopDistance": 8.0,
+            "BottomDistance": 8.0,
             "ZMin": -0.0005,
             "ZMax": 0.0005
         },
@@ -70,7 +70,7 @@
             "Solver": "simpleFoam",
             "StartFrom": "startTime",
             "StartTime": 0,
-            "EndTime": 3000,
+            "EndTime": 4000,
             "DeltaT": 1,
             "WriteControl": "timeStep",
             "WriteInterval": 500,
@@ -89,25 +89,11 @@
                 "Tolerance": 1e-05,
                 "RelTol": 0.1
             },
-            "gammaInt": {
-                "Solver": "smoothSolver",
-                "Smoother": "symGaussSeidel",
-                "Tolerance": 1e-05,
-                "RelTol": 0.2
-            },
-            "ReThetat": {
-                "Solver": "smoothSolver",
-                "Smoother": "symGaussSeidel",
-                "Tolerance": 1e-06,
-                "RelTol": 0.3
-            },
             "RelaxationFactors": {
                 "p": 0.3,
                 "U": 0.6,
                 "k": 0.6,
-                "omega": 0.6,
-                "reThetat": 0.3,
-                "gammaInt": 0.2
+                "omega": 0.6
             }
         },
         "FvSchemes": {
@@ -139,7 +125,7 @@
             "Turbulence": "on",
             "Model": "kOmegaSST",
             "TurbulenceIntensity": 0.0005,
-            "TurbulenceLengthScaleChord": 0.015,
+            "TurbulenceLengthScaleChord": 0.01,
             "kOmegaSSTLM": {
                 "Cmu": 0.09
             },

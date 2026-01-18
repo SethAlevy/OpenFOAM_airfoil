@@ -1,8 +1,8 @@
 from pathlib import Path
-from templates.airfoil_template import Airfoil
-from templates.initial_settings_template import Settings
+from templates.python_template_files.airfoil_template import Airfoil
+from templates.python_template_files.initial_settings_template import Settings
 from simulation.openfoam.block_mesh import get_bounding_box
-from templates.openfoam_template_files.snappy_mex_mesh_file import (
+from templates.openfoam_template_files.snappy_hex_mesh_file import (
     generate_snappy_hex_mesh_dict
 )
 
