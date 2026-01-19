@@ -1435,7 +1435,7 @@ Many keys have defined defaults inside the code and don't need to be mentioned i
 ```python
 from settings.initial_settings import InitialSettingsReader
 
-settings = InitialSettingsReader("../input/initial_settings.json")
+settings = InitialSettingsReader("../examples/naca0012_study/aoa_5.json")
 
 settings.airfoil_settings
 settings.simulation_settings
@@ -1490,8 +1490,8 @@ from simulation.openfoam.block_mesh import block_mesh_dict
 from settings.initial_settings import InitialSettingsReader
 from airfoil.airfoil import NACA4
 
-settings = InitialSettingsReader("../input/initial_settings.json")
-airfoil = NACA4("4412", chord_length=1.2, resolution=300)
+settings = InitialSettingsReader("../examples/naca0012_study/aoa_5.json")
+airfoil = NACA4("0012", chord_length=1.2, resolution=300)
 
 block_mesh_dict(airfoil=airfoil, setup=settings, output_path=Path("./blockMeshDict"))
 ```

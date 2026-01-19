@@ -1,5 +1,5 @@
 site_name: OpenFOAM Airfoil Simulations
-site_description: Documentation for the OpenFOAM Airfoil g+Generation and Simulation Package
+site_description: Documentation for the OpenFOAM Airfoil Generation and Simulation Package
 repo_url: https://github.com/SethAlevy/OpenFOAM_airfoil
 edit_uri: blob/main/docs/
 strict: false
@@ -7,39 +7,49 @@ strict: false
 theme:
   name: material
   font:
-    text: Space Grotesk
-    code: JetBrains Mono
+    text: Inter
+    code: Fira Code
   features:
     - content.code.copy
+    - content.code.annotate
     - navigation.tabs
+    - navigation.tabs.sticky
     - navigation.top
     - navigation.sections
     - navigation.expand
+    - navigation.indexes
     - search.highlight
     - search.suggest
+    - search.share
   palette:
     - scheme: default
       toggle:
         icon: material/weather-night
-        name: Dark mode
-      primary: amber
-      accent: deep orange
+        name: Switch to dark mode
+      primary: blue grey 
+      accent: cyan
     - scheme: slate
       toggle:
         icon: material/weather-sunny
-        name: Light mode
-      primary: blue gray
-      accent: deep purple
+        name: Switch to light mode
+      primary: indigo
+      accent: light blue
+  logo: assets/logo.png
+  favicon: assets/favicon.png
+  icon:
+    repo: fontawesome/brands/github
 
 nav:
-  - Background and introduction (eng): openfoam_airfoil.md
-  - Code documentation: index.md
-#  - Podstawy teoretyczne (pl): openfoam_airfoil_pl.md
+  - Home: openfoam_airfoil.md
+  - API Documentation: 
+      - Overview: index.md
+      - API Reference: api/
 
 plugins:
   - search
   - git-revision-date-localized:
       fallback_to_build_date: true
+      enable_creation_date: true
   - mkdocstrings:
       handlers:
         python:
@@ -48,36 +58,58 @@ plugins:
             show_root_heading: true
             show_source: false
             merge_init_into_class: true
+            show_signature_annotations: true
             filters:
               - "!^__init__$"
 
 markdown_extensions:
   - admonition
+  - attr_list
+  - def_list
+  - md_in_html
+  - pymdownx.details
   - pymdownx.highlight:
       anchor_linenums: true
       line_spans: __span
       pygments_lang_class: true
   - pymdownx.inlinehilite
   - pymdownx.snippets
-  - pymdownx.superfences
-  - pymdownx.emoji
-  - pymdownx.tabbed
-  - pymdownx.tasklist
-  - pymdownx.arithmatex
-  - toc:
-      permalink: true
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.arithmatex:
+      generic: true
+      block_syntax: ["$$", "$$"]
+      inline_syntax: ["$", "$"]
+  - toc:
+      permalink: true
+      toc_depth: 3
 
 extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/SethAlevy
+      name: GitHub Repository
     - icon: fontawesome/solid/envelope
       link: mailto:arek.drabik1453@gmail.com
+      name: Email Contact
+  analytics:
+    provider: google
+    property: G-XXXXXXXXXX
+
+extra_css:
+  - stylesheets/extra.css
 
 extra_javascript:
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
   - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+  - javascripts/extra.js
