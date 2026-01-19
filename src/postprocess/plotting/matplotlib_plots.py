@@ -195,10 +195,10 @@ def plot_airfoil(
     plt.legend(fontsize=config.font_size_legend)
     if config.tight_layout:
         plt.tight_layout()
-    if show or output_dir is None:
-        plt.show()
     if output_dir is not None:
         save_matplotlib_plot(output_dir, "airfoil_geometry", save_formats, config.dpi)
+    if show or output_dir is None:
+        plt.show()
     plt.close()
 
 

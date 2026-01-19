@@ -1,6 +1,6 @@
 # OpenFOAM Airfoil Simulator
 
-This repository is dedicated to performing 2D airfoil simulations using OpenFOAM (currently OpenFOAM v2406) and post-processing the results. There are multiple functions to generate, load, and export airfoils, create meshes, prepare boundary conditions, and set up the complete case structure. Predefined environments and scripts allow you to launch full analyses for several variants with post-processing and comparisons. The documentation and provided examples should help getting familiar with the subject of airfoil CFD simulations. Although some functionalities are tested and compared to outer reference it is not recommended to treat them as benchmarks due to several simplifications and eventual inaccuracies. 
+This repository is dedicated to performing 2D airfoil simulations using OpenFOAM (currently [OpenFOAM v2406](https://www.openfoam.com/news/main-news/openfoam-v2406)) and post-processing the results. There are multiple functions to generate, load, and export airfoils, create meshes, prepare boundary conditions, and set up the complete case structure. Predefined environments and scripts allow you to launch full analyses for several variants with post-processing and comparisons. The documentation and provided examples should help getting familiar with the subject of airfoil CFD simulations. Although some functionalities are tested and compared to outer reference it is not recommended to treat them as benchmarks due to several simplifications and eventual inaccuracies. 
 
 # Getting Started
 
@@ -65,7 +65,7 @@ There is a set of common parameters that are used to describe and understand the
  - **Lift** – the component of the aerodynamic force acting perpendicular to the incoming flow direction.
  - **Drag** – the component of the aerodynamic force acting parallel to the incoming flow direction.
  
-**[plot placeholder]**
+![NACA 2412 at 5° AoA](images/airfoil_geometry.png)
 
 ## NACA Airfoils 
 
@@ -77,10 +77,11 @@ The simplest series where the geometry is described by three parameters through 
 
 **NACA MPXX**
 
-where: 
- - **M** is the maximum camber as a percentage of the chord, 
- - **P** is the position of maximum camber in tenths of the chord,
- - **XX** is the maximum thickness as a percentage of the chord. 
+where:
+
+ - **M** is the maximum camber as a percentage of the chord.
+ - **P** is the position of maximum camber in tenths of the chord.
+ - **XX** is the maximum thickness as a percentage of the chord.
  
 For example, NACA 4415 (4-4-15) has a maximum camber of 4% of the chord, located at 40% of the chord line from the leading edge and a maximum thickness of 15% of the chord. Another good example is the NACA 0012 (0-0-12) which has zero camber (which means the airfoil is symmetric and does not produce lift at 0° angle of attack) and a maximum thickness of 12% of the chord. The following equations allow calculation of the airfoil's geometry: 
 
@@ -1610,8 +1611,6 @@ These estimations should be enough to reach reasonable accuracy in most cases, a
 
 In the repository, a simple box-shaped domain is implemented, but there are other common shapes like the C-grid and O-grid.
 
-**[table placeholder]**
-
 | Study Type | Recommended Radius | Reason |
 |------------|-------------------|---------|
 | Cruise Low AoA | 15\(C\) – 20\(C\) | Standard boundary layer development. |
@@ -1746,6 +1745,7 @@ Computes coefficients using the airfoil patch, freestream properties, and refere
 ```powershell
 postProcess -time "0:" -func "forceCoeffs(libs=(forces), patches=(airfoil), rho=rhoInf, rhoInf=<density>, CofR(<xQuarterChord> 0 0), liftDir(<-sinAoA> <cosAoA> 0), dragDir(<cosAoA> <sinAoA> 0), pitchAxis=(0 0 1), magUInf=<Uinf>, lRef=<chord>, Aref=<Aref>)"
 ```
+
 - **patches** - airfoil surface name
 - **rho / rhoInf** - density mode and freestream value
 - **CofR** - center of rotation (quarter‑chord)
@@ -1877,150 +1877,144 @@ An important consideration is that parallel simulations must be reconstructed wi
 
 # Examples
 
-The repository has several predefined example cases, which are ready to use. Its role is to introduce some of the implemented functionalities and validate the achieved results.
+The repository includes several predefined example cases that are ready to use. Their role is to introduce some of the implemented functionalities and validate the achieved results.
 
 ## NACA0012 study
 
 ### Intention
 
-The scope of this examples is to validate a steady state simulation with SST turbulence model to external experiment and simulation data.
+The scope of this example is to validate a steady-state simulation with the SST turbulence model against external experimental and simulation data.
 
 ### References and conditions
 
-NACA0012 was chosen due to rich and good documented resources provided by [NASA](https://turbmodels.larc.nasa.gov/naca0012_val.html). The site presents several numerical validation simulations for different turbulence models with large background, equations and other information. It sources a [report created by Charles Landson](https://ntrs.nasa.gov/api/citations/19880019495/downloads/19880019495.pdf) with a large number of experimental, wind tunnel data for the airfoil. While NASAs data is the main reference, in addition SimScale provides a [recreation](https://help.sim-flow.com/validation/naca-0012-airfoil#ladson) of this results.
+NACA0012 was chosen due to rich and well-documented resources provided by [NASA](https://turbmodels.larc.nasa.gov/naca0012_val.html). The site presents several numerical validation simulations for different turbulence models with extensive background, equations, and other information. It sources a [report created by Charles Ladson](https://ntrs.nasa.gov/api/citations/19880019495/downloads/19880019495.pdf) with a large number of experimental wind tunnel data for the airfoil. While NASA's data is the main reference, SimScale also provides a [recreation](https://help.sim-flow.com/validation/naca-0012-airfoil#ladson) of these results.
 
-Initial conditions consists of Reynolds number 6e6, also Mach number 0.15 is mentioned which were taken as the base for creating this simulations. The NASA simulations also mention a very large domain and low initial turbulence.
+Initial conditions consist of Reynolds number $6 \times 10^6$ and Mach number 0.15, which were taken as the base for creating these simulations. The NASA simulations also mention a very large domain and low initial turbulence.
 
-### Assumption for case creation
+### Assumptions for case creation
 
-The mentioned above conditions were take as a base, but to perform a correct and feasible simulations several assumptions were made. Trying to keep the Reynolds and Mach numbers for air (15C) would require a chord of about 1.7m. This would result in a massive mesh, hard to handle with no access do dedicated computational resources. Thus scaling was applied lowering viscosity to 2.5e-06 m2/s and chord to 0.28m. This allowed to create a relatively light mesh, but small airfoil size relative to cell size resulted in lower mesh quality for boundary layers trying to resolve high curvature areas.
+The aforementioned conditions were taken as a base, but to perform correct and feasible simulations, several assumptions were made. Trying to keep the Reynolds and Mach numbers for air (15°C) would require a chord of about 1.7 m. This would result in a massive mesh, hard to handle without access to dedicated computational resources. Thus, scaling was applied by lowering viscosity to $2.5 \times 10^{-6}\,\text{m}^2/\text{s}$ and chord to 0.28 m. This allowed creation of a relatively lightweight mesh, but the small airfoil size relative to cell size resulted in lower mesh quality for boundary layers trying to resolve high-curvature areas.
 
 ### Mesh
 
-Trying to balance between mesh quality and near airfoil resolution, refinement was applied to achieve average y+ ~ 1 and maximum below 1.5. The field around was treated with multiple boxes trying to cover the wake and reduce farfield number of cells.
+Trying to balance between mesh quality and near-airfoil resolution, refinement was applied to achieve average $y^+ \sim 1$ and maximum below 1.5. The field around was treated with multiple boxes trying to cover the wake and reduce far-field number of cells.
 
 #### Domain
 
- - **Inlet distance** - 10C
- - **Outlet distance** - 20C
- - **Top and bottom distances** - 8C (16C full width)
- - **Z-span** - 0.001m
+ - **Inlet distance** – 10$C$
+ - **Outlet distance** – 20$C$
+ - **Top and bottom distances** – 8$C$ (16$C$ full width)
+ - **Z-span** – 0.001 m
 
 #### Applied refinements
 
- - **Boundary layers**                  
-    "NLayers": 14,
-    "ThicknessRatio": 1.1,
-    "MaxFirstLayerThickness": 0.000005,
-    "AllowedDiscontinuity": 1
+ - **Boundary layers**
+    - `"NLayers": 14`
+    - `"ThicknessRatio": 1.1`
+    - `"MaxFirstLayerThickness": 0.000005`
+    - `"AllowedDiscontinuity": 1`
  - **Airfoil refinement**
-    "CellSize": 0.00025,
-    "Thickness": 0.0004
+    - `"CellSize": 0.00025`
+    - `"Thickness": 0.0004`
  - **Near field box**
-    "XMin": -0.05,
-    "XMax": 0.4,
-    "YMin": -0.08,
-    "YMax": 0.08,
-    "CellSize": 0.00075
+    - `"XMin": -0.05`, `"XMax": 0.4`
+    - `"YMin": -0.08`, `"YMax": 0.08`
+    - `"CellSize": 0.00075`
  - **Near shell box**
-    "XMin": -0.15,
-    "XMax": 1.5,
-    "YMin": -0.4,
-    "YMax": 0.4,
-    "CellSize": 0.00225
+    - `"XMin": -0.15`, `"XMax": 1.5`
+    - `"YMin": -0.4`, `"YMax": 0.4`
+    - `"CellSize": 0.00225`
  - **Outer shell box**
-    "XMin": -0.8,
-    "XMax": 2.5,
-    "YMin": -1.0,
-    "YMax": 1.0,
-    "CellSize": 0.009
+    - `"XMin": -0.8`, `"XMax": 2.5`
+    - `"YMin": -1.0`, `"YMax": 1.0`
+    - `"CellSize": 0.009`
  - **Far field**
-    "MaxCellSize": 0.036
+    - `"MaxCellSize": 0.036`
 
 ### Boundary conditions
 
-Based on the previous assumptions velocity was estimated about 53 m/s, pressure was assumed kinematic with 0 value, turbulence intensity based on NASA reference 0.05% (0.0005) and relatively low turbulence length scale of 0.01 * C.
+Based on the previous assumptions, velocity was estimated at about 53 m/s, pressure was assumed kinematic with 0 value, turbulence intensity based on the NASA reference was 0.05% (0.0005), and a relatively low turbulence length scale of $0.01 \times C$.
 
 #### Airfoil
 
- - **U**
-         type            noSlip;
- - **p**
-    type            zeroGradient;
- - **k**
-    type            kqRWallFunction;
-    value           uniform 0;
- - **omega**
-    type            omegaWallFunction;
-    value           uniform 0;
- - **nut**
-    type            nutLowReWallFunction;
-    value           uniform 0;
+ - **U**: `type noSlip;`
+ - **p**: `type zeroGradient;`
+ - **k**: `type kqRWallFunction; value uniform 0;`
+ - **omega**: `type omegaWallFunction; value uniform 0;`
+ - **nut**: `type nutLowReWallFunction; value uniform 0;`
 
 #### Inlet
 
- - **U**
-    type            fixedValue;
-    value           uniform (53.5714 0 0);
- - **p**
-    type            zeroGradient;
- - **k**
-    type            turbulentIntensityKineticEnergyInlet;
-    intensity       0.0005;
-    value           uniform 0.00107621;
- - **omega**
-    type            turbulentMixingLengthFrequencyInlet;
-    mixingLength    0.0028;
-    value           uniform 21.391;
- - **nut**
-    type            zeroGradient;
+ - **U**: `type fixedValue; value uniform (53.5714 0 0);`
+ - **p**: `type zeroGradient;`
+ - **k**: `type turbulentIntensityKineticEnergyInlet; intensity 0.0005; value uniform 0.00107621;`
+ - **omega**: `type turbulentMixingLengthFrequencyInlet; mixingLength 0.0028; value uniform 21.391;`
+ - **nut**: `type zeroGradient;`
 
 #### Outlet
 
- - **U**
-    type            zeroGradient;
- - **p**
-    type            fixedValue;
-    value           uniform 0;
- - **k**
-    type            zeroGradient;
- - **omega**
-    type            zeroGradient;
- - **nut**
-    type            zeroGradient;
+ - **U**: `type zeroGradient;`
+ - **p**: `type fixedValue; value uniform 0;`
+ - **k**: `type zeroGradient;`
+ - **omega**: `type zeroGradient;`
+ - **nut**: `type zeroGradient;`
 
 #### Top and bottom
 
-All boundaries are set as zeroGradient
+All boundaries are set as `zeroGradient`.
 
 #### Front and back
 
-All boundaries are set as empty
+All boundaries are set as `empty`.
 
 ### Results
 
-Results are still in progress
+Results are still in progress.
 
 ### Launching the case
 
-Launching awaits rework
+Launching awaits rework.
 
 ## Turbulence comparison
 
-The scope of this tutorial is to show different implemented turbulence models and difference between them. This example is still work in progress.
+The scope of this tutorial is to show different implemented turbulence models and the differences between them. This example is still work in progress.
 
 # Summary
 
-You are encouraged to use, modify, and draw inspiration from this repository for your own projects. If you notice an error or have an improvement suggestion, feel free to get in touch.
+This repository was created as an interface for OpenFOAM to easily prepare and perform airfoil simulations. It may be used for education, testing, or as a base for your own development. You are encouraged to use, modify, and draw inspiration from this repository for your own projects. If you notice an error or have an improvement suggestion, feel free to get in touch.
 
 ## Limitations
 
-What is not supported here.
+Most importantly, this repository should not be used as proper validation. Although some elements were tested and compared, this code provides only a framework for OpenFOAM and is not a valid reference for simulation setup.
 
 ## Future development
 
-Mentioning the features that are missing for now and potential areas of further development
+There are several elements planned for implementation:
 
-## Useful
+ - Implementing a reliable workflow for meshing with snappyHexMesh.
+ - Supporting higher Reynolds flows.
+ - Implementing transition modeling.
 
-List some useful sites, material etc.
+## Useful resources
+
+During development, several different sources and materials were used. As OpenFOAM is a somewhat specific software, forums and YouTube tutorials are very helpful sources. For beginners, it is highly recommended to take your time and follow them. General physical phenomena are well covered in online encyclopedic sources, like English Wikipedia. For creating simple OpenFOAM cases, AI language models (external chat and GitHub Copilot) were used to prepare files and templates with user-specific inputs. This form may be useful for preparing first, simple simulations, but caution is recommended as they tend to mislead when working on more complex phenomena and tend to mismatch syntax for some utilities and different distributions. Below you can find some of the most important sources and sites:
+
+- http://airfoiltools.com/index
+- https://www.cfd-online.com/Wiki/Main_Page
+- https://cfmesh.com/wp-content/uploads/2015/09/User_Guide-cfMesh_v1.1.pdf
+- https://ciechanow.ski/airfoil/
+- https://develop.openfoam.com/Community/integration-cfmesh/-/tree/v2406
+- https://engineeringlibrary.org/reference/continuity-equation-fluid-flow-doe-handbook
+- https://fiveable.me/aerodynamics
+- https://galaxy.agh.edu.pl/~chwiej/imn/imn1/18/wyk/6_rownania_mechaniki_plynow.pdf
+- https://help.sim-flow.com/validation/naca-0012-airfoil#ladson
+- https://www.grc.nasa.gov/www/k-12/VirtualAero/BottleRocket/airplane/
+- https://m-selig.ae.illinois.edu/
+- https://ntrs.nasa.gov/api/citations/19880019495/downloads/19880019495.pdf
+- https://towardsdatascience.com/introduction-to-naca-airfoil-aerodynamics-in-python-72a1c3ee46b1/
+- https://turbmodels.larc.nasa.gov/naca0012_val.html
+- https://web.stanford.edu/~cantwell/AA200_Course_Material/The%20NACA%20airfoil%20series.pdf
+- https://www.wolfdynamics.com/training/CFMESH/cfmesh2017.pdf
+- https://www.wolfdynamics.com/wiki/meshing_OF_SHM.pdf
+- https://www.youtube.com/@fluidmechanics101/videos
+- https://www.youtube.com/@OpenFOAMbasic/videos

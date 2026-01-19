@@ -28,9 +28,12 @@ def vertices_section(
     7: (x_min, y_max, z_max)
 
     Args:
-        x_min, x_max: Domain bounds in x direction.
-        y_min, y_max: Domain bounds in y direction.
-        z_min, z_max: Domain bounds in z direction.
+        x_min (float): Domain lower bound in x direction.
+        x_max (float): Domain upper bound in x direction.
+        y_min (float): Domain lower bound in y direction.
+        y_max (float): Domain upper bound in y direction.
+        z_min (float): Domain lower bound in z direction.
+        z_max (float): Domain upper bound in z direction.
 
     Returns:
         str: Formatted vertices section.
@@ -49,16 +52,20 @@ def vertices_section(
 """
 
 
-def blocks_section(nx: int, ny: int, nz: int) -> str:
+def blocks_section(
+    nx: int,
+    ny: int,
+    nz: int
+) -> str:
     """
     Generate the blocks section of blockMeshDict.
 
     Creates a single hex block with specified cell divisions.
 
     Args:
-        nx: Number of cells in x direction.
-        ny: Number of cells in y direction.
-        nz: Number of cells in z direction.
+        nx (int): Number of cells in x direction.
+        ny (int): Number of cells in y direction.
+        nz (int): Number of cells in z direction.
 
     Returns:
         str: Formatted blocks section.
@@ -85,12 +92,12 @@ def boundary_section(
     front/back symmetry planes).
 
     Args:
-        inlet_patch: Name of inlet boundary patch.
-        outlet_patch: Name of outlet boundary patch.
-        lower_wall_patch: Name of lower wall patch.
-        upper_wall_patch: Name of upper wall patch.
-        front_patch: Name of front symmetry plane.
-        back_patch: Name of back symmetry plane.
+        inlet_patch (str): Name of inlet boundary patch.
+        outlet_patch (str): Name of outlet boundary patch.
+        lower_wall_patch (str): Name of lower wall patch.
+        upper_wall_patch (str): Name of upper wall patch.
+        front_patch (str): Name of front symmetry plane.
+        back_patch (str): Name of back symmetry plane.
 
     Returns:
         str: Formatted boundary section.
@@ -171,19 +178,22 @@ def generate_block_mesh_dict(
     Generate complete blockMeshDict file content.
 
     Args:
-        x_min, x_max: Domain bounds in x direction.
-        y_min, y_max: Domain bounds in y direction.
-        z_min, z_max: Domain bounds in z direction.
-        nx: Number of cells in x direction.
-        ny: Number of cells in y direction.
-        nz: Number of cells in z direction.
-        scale: Scale factor for all coordinates.
-        inlet_patch: Name of inlet boundary patch.
-        outlet_patch: Name of outlet boundary patch.
-        lower_wall_patch: Name of lower wall patch.
-        upper_wall_patch: Name of upper wall patch.
-        front_patch: Name of front symmetry plane.
-        back_patch: Name of back symmetry plane.
+        x_min (float): Domain lower bound in x direction.
+        x_max (float): Domain upper bound in x direction.
+        y_min (float): Domain lower bound in y direction.
+        y_max (float): Domain upper bound in y direction.
+        z_min (float): Domain lower bound in z direction.
+        z_max (float): Domain upper bound in z direction.
+        nx (int): Number of cells in x direction.
+        ny (int): Number of cells in y direction.
+        nz (int): Number of cells in z direction.
+        scale (float): Scale factor for all coordinates.
+        inlet_patch (str): Name of inlet boundary patch.
+        outlet_patch (str): Name of outlet boundary patch.
+        lower_wall_patch (str): Name of lower wall patch.
+        upper_wall_patch (str): Name of upper wall patch.
+        front_patch (str): Name of front symmetry plane.
+        back_patch (str): Name of back symmetry plane.
 
     Returns:
         str: Complete blockMeshDict file content.

@@ -2,6 +2,7 @@ import numpy as np
 import requests
 from scipy.interpolate import interp1d
 from pathlib import Path
+from typing import Optional, Tuple
 from utils.logger import SimpleLogger
 import utils.geometry as geo
 
@@ -27,11 +28,11 @@ class NACA4(BaseAirfoil):
 
     def __init__(
         self,
-        designation: str = None,
-        chord_length: float = None,
-        resolution: int = None,
-        setup=None
-    ):
+        designation: Optional[str] = None,
+        chord_length: Optional[float] = None,
+        resolution: Optional[int] = None,
+        setup: Optional[object] = None
+    ) -> None:
         super().__init__(
             source="naca",
             designation=designation,
@@ -40,7 +41,7 @@ class NACA4(BaseAirfoil):
             setup=setup
         )
 
-    def extract_digits(self):
+    def extract_digits(self) -> Tuple[float, float, float]:
         """
         Extract the digits from the NACA designation.
 
@@ -53,7 +54,7 @@ class NACA4(BaseAirfoil):
         t = int(self.designation[2:]) / 100.0
         self.m, self.p, self.t = m, p, t
 
-    def _mean_camber_line(self, x, m, p):
+    def _mean_camber_line(self, x: np.ndarray, m: float, p: float) -> np.ndarray:
         """
         Calculate the mean camber line based on the NACA 4-digit designation.
 
@@ -73,7 +74,7 @@ class NACA4(BaseAirfoil):
             m / ((1 - p) ** 2) * ((1 - 2 * p) + 2 * p * x - x ** 2)
         )
 
-    def _mean_camber_derivative(self, x, m, p):
+    def _mean_camber_derivative(self, x: np.ndarray, m: float, p: float) -> np.ndarray:
         """
         Calculate the derivative of the mean camber line.
 
@@ -93,7 +94,12 @@ class NACA4(BaseAirfoil):
             (2 * m / ((1 - p) ** 2)) * (p - x)
         )
 
-    def _thickness_distribution(self, x, t, closed=True):
+    def _thickness_distribution(
+            self,
+            x: np.ndarray,
+            t: float,
+            closed: bool = True
+    ) -> np.ndarray:
         """
         Calculate the thickness distribution.
 
@@ -120,7 +126,9 @@ class NACA4(BaseAirfoil):
         )
         return yt
 
-    def _upper_surface(self, x, yc, yt, theta):
+    def _upper_surface(
+        self, x: np.ndarray, yc: np.ndarray, yt: np.ndarray, theta: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Calculate the upper surface coordinates.
 
@@ -137,7 +145,13 @@ class NACA4(BaseAirfoil):
         yu = yc + yt * np.cos(theta)
         return xu, yu
 
-    def _lower_surface(self, x, yc, yt, theta):
+    def _lower_surface(
+        self,
+        x: np.ndarray,
+        yc: np.ndarray,
+        yt: np.ndarray,
+        theta: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Calculate the lower surface coordinates.
 
@@ -154,7 +168,7 @@ class NACA4(BaseAirfoil):
         yl = yc - yt * np.cos(theta)
         return xl, yl
 
-    def _theta(self, dyc_dx):
+    def _theta(self, dyc_dx: np.ndarray) -> np.ndarray:
         """
         Calculate the angle theta which the inverse tangent of the mean camber
         derivative.
@@ -187,11 +201,11 @@ class NACA5(BaseAirfoil):
 
     def __init__(
         self,
-        designation: str = None,
-        chord_length: float = None,
-        resolution: int = None,
-        setup=None
-    ):
+        designation: Optional[str] = None,
+        chord_length: Optional[float] = None,
+        resolution: Optional[int] = None,
+        setup: Optional[object] = None
+    ) -> None:
         super().__init__(
             source="naca",
             designation=designation,
@@ -200,7 +214,7 @@ class NACA5(BaseAirfoil):
             setup=setup
         )
 
-    def _extract_digits(self):
+    def extract_digits(self) -> Tuple[float, float, int, float]:
         """
         Extract the digits from the NACA 5-digit designation.
 
@@ -214,7 +228,7 @@ class NACA5(BaseAirfoil):
         t = int(self.designation[3:]) / 100.0
         self.cl, self.p, self.q, self.t = cl, p, q, t
 
-    def _mean_camber_line(self, x, cl, p, q):
+    def _mean_camber_line(self, x: np.ndarray, cl: float, p: float, q: int) -> np.ndarray:
         """
         Calculate the mean camber line based on the NACA 5-digit designation.
 
@@ -247,7 +261,9 @@ class NACA5(BaseAirfoil):
             )
         return yc
 
-    def _mean_camber_derivative(self, x, cl, p, q):
+    def _mean_camber_derivative(
+            self, x: np.ndarray, cl: float, p: float, q: int
+    ) -> np.ndarray:
         """
         Calculate the derivative of the mean camber line.
 
@@ -280,7 +296,9 @@ class NACA5(BaseAirfoil):
             )
         return dyc_dx
 
-    def _thickness_distribution(self, x, t, closed=True):
+    def _thickness_distribution(
+            self, x: np.ndarray, t: float, closed: bool = True
+    ) -> np.ndarray:
         """
         Calculate the thickness distribution.
 
@@ -306,7 +324,9 @@ class NACA5(BaseAirfoil):
         )
         return yt
 
-    def _upper_surface(self, x, yc, yt, theta):
+    def _upper_surface(
+        self, x: np.ndarray, yc: np.ndarray, yt: np.ndarray, theta: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Calculate the upper surface coordinates.
 
@@ -323,7 +343,9 @@ class NACA5(BaseAirfoil):
         yu = yc + yt * np.cos(theta)
         return xu, yu
 
-    def _lower_surface(self, x, yc, yt, theta):
+    def _lower_surface(
+        self, x: np.ndarray, yc: np.ndarray, yt: np.ndarray, theta: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Calculate the lower surface coordinates.
 
@@ -340,7 +362,7 @@ class NACA5(BaseAirfoil):
         yl = yc - yt * np.cos(theta)
         return xl, yl
 
-    def _theta(self, dyc_dx):
+    def _theta(self, dyc_dx: np.ndarray) -> np.ndarray:
         """
         Calculate the angle theta which is the inverse tangent of the mean camber
         derivative.
@@ -373,11 +395,11 @@ class UIUCAirfoil(BaseAirfoil):
 
     def __init__(
         self,
-        designation: str = None,
-        chord_length: float = None,
-        resolution: int = None,
-        setup=None
-    ):
+        designation: Optional[str] = None,
+        chord_length: Optional[float] = None,
+        resolution: Optional[int] = None,
+        setup: Optional[object] = None
+    ) -> None:
         super().__init__(
             source="file",
             designation=designation,
@@ -392,7 +414,7 @@ class UIUCAirfoil(BaseAirfoil):
         mean camber line and thickness distribution.
 
         Args:
-            str: Designation of the airfoil.
+            designation (str): Designation of the airfoil.
         """
         file_path = self.download_uiuc_airfoil(designation)
         if not file_path:
@@ -407,7 +429,9 @@ class UIUCAirfoil(BaseAirfoil):
         self._mean_camber_line = self._calculate_mean_camber_line()
         self._thickness = self._thickness_distribution()
 
-    def download_uiuc_airfoil(self, designation: str, save_dir: str = None) -> Path:
+    def download_uiuc_airfoil(
+            self, designation: str, save_dir: Optional[str] = None
+    ) -> Optional[Path]:
         """
         Download an airfoil .dat file from the UIUC Airfoil Database
         (https://m-selig.ae.illinois.edu/ads/coord_database.html).
@@ -444,6 +468,7 @@ class UIUCAirfoil(BaseAirfoil):
             SimpleLogger.warning(
                 f"Airfoil '{designation}' not found at UIUC database."
             )
+            return None
 
     def load_airfoil_dat(self, file_path: Path) -> np.ndarray:
         """
@@ -461,9 +486,8 @@ class UIUCAirfoil(BaseAirfoil):
         return np.array([x, y])
 
     def _extract_upper_lower_lines(
-            self,
-            coords: np.ndarray
-    ) -> tuple[np.ndarray, np.ndarray]:
+        self, coords: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Convert the UIUC dat file to get upper and lower surface coordinates.
 
@@ -486,7 +510,7 @@ class UIUCAirfoil(BaseAirfoil):
 
     def _resample_airfoil(
         self, upper_line: np.ndarray, lower_line: np.ndarray
-    ) -> tuple[np.ndarray, np.ndarray]:
+    ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Resample airfoil coordinates to have n_points along the chord.
 

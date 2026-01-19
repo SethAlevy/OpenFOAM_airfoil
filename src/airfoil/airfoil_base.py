@@ -1,5 +1,6 @@
 import numpy as np
 from pathlib import Path
+from typing import Optional, Tuple
 import utils.utilities as ut
 import utils.geometry as geo
 from utils.logger import SimpleLogger
@@ -37,8 +38,8 @@ class BaseAirfoil(Airfoil):
         airfoil_config = setup.airfoil_settings if setup is not None else {}
 
         self.source = source
-        self.name = ut.resolve_value(
-            designation, airfoil_config, "Name", designation
+        self.designation = ut.resolve_value(
+            designation, airfoil_config, "Designation", designation
         )
         self._chord = ut.resolve_value(
             chord_length, airfoil_config, "Chord", chord_length
@@ -52,7 +53,7 @@ class BaseAirfoil(Airfoil):
         self.x_alpha_zero = self.x.copy()
 
         if self.source == "naca":
-            self._extract_digits()
+            self.extract_digits()
         elif self.source == "file":
             self.get_airfoil(self.designation)
         else:
@@ -71,7 +72,7 @@ class BaseAirfoil(Airfoil):
         self._alpha = alpha
 
     @property
-    def upper_surface(self):
+    def upper_surface(self) -> Tuple[np.ndarray, np.ndarray]:
         """
         Get the upper surface coordinates eventually rotated by alpha.
 
@@ -105,7 +106,7 @@ class BaseAirfoil(Airfoil):
             return geo.rotate_by_alpha(-self._alpha, upper_line[0], upper_line[1])
 
     @property
-    def lower_surface(self):
+    def lower_surface(self) -> Tuple[np.ndarray, np.ndarray]:
         """
         Get the lower surface coordinates eventually rotated by alpha.
 
@@ -139,7 +140,7 @@ class BaseAirfoil(Airfoil):
             return geo.rotate_by_alpha(-self._alpha, lower_line[0], lower_line[1])
 
     @property
-    def mean_camber_line(self):
+    def mean_camber_line(self) -> Tuple[np.ndarray, np.ndarray]:
         """
         Get the mean camber line coordinates eventually rotated by alpha.
 
@@ -165,7 +166,7 @@ class BaseAirfoil(Airfoil):
             )
 
     @property
-    def thickness(self):
+    def thickness(self) -> Tuple[np.ndarray, np.ndarray]:
         """
         Get the thickness distribution coordinates eventually rotated by alpha.
 
@@ -209,7 +210,7 @@ class BaseAirfoil(Airfoil):
     def plot(
             self,
             title: str = "Airfoil",
-            save_path: Path = None,
+            output_dir: Optional[Path] = None,
             show: bool = True
     ) -> None:
         """
@@ -217,14 +218,15 @@ class BaseAirfoil(Airfoil):
 
         Args:
             title (str): Title of the plot.
-            save_path (Path): Path to save the plot image. If None, the plot is shown.
+            output_dir (Optional[Path]): Directory to save the plot image. If None, the
+                plot is shown.
             show (bool): Whether to display the plot.
         """
         plot_airfoil(
             self.upper_surface,
             self.lower_surface,
             title,
-            save_path,
+            output_dir,
             show,
             self.mean_camber_line,
             self.thickness,
@@ -254,7 +256,7 @@ class BaseAirfoil(Airfoil):
         elif dimension == 3:
             geo.export_airfoil_to_stl_3d(xu, yu, xl, yl, output_path, thickness)
 
-    def airfoil_details(self):
+    def airfoil_details(self) -> None:
         """
         Simple log with the airfoil details.
         """

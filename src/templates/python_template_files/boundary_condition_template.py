@@ -106,3 +106,69 @@ class BoundaryCondition(ABC):
             float: The chord length.
         """
         pass
+
+    @property
+    @abstractmethod
+    def turbulence_length_scale(self) -> float:
+        """
+        Get the turbulence length scale.
+
+        Returns:
+            float: The turbulence length scale.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def turbulence_intensity(self) -> float:
+        """
+        Get the turbulence intensity.
+
+        Returns:
+            float: The turbulence intensity.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def turbulence_model(self) -> str:
+        """
+        Get the turbulence model.
+
+        Returns:
+            str: The turbulence model.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def k(self) -> float:
+        """
+        Get the turbulence kinetic energy.
+
+        Returns:
+            float: The turbulence kinetic energy.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def omega(self) -> float:
+        """
+        Get the specific dissipation rate for k-omega SST model.
+
+        Returns:
+            float: The specific dissipation rate.
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def epsilon(self) -> float:
+        """
+        Get the turbulence dissipation rate for k-epsilon model.
+
+        Returns:
+            float: The turbulence dissipation rate.
+        """
+        pass

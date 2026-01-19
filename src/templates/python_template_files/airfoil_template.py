@@ -89,10 +89,19 @@ class Airfoil(ABC):
         pass
 
     @abstractmethod
-    def plot(self) -> None:
+    def plot(
+        self,
+        title: str = "Airfoil",
+        save_path: Path = None,
+        show: bool = True
+    ) -> None:
         """
-        Plot the airfoil geometry including upper surface, lower surface,
-        mean camber line, and thickness distribution.
+        Plot the airfoil geometry.
+
+        Args:
+            title (str): Title of the plot.
+            save_path (Path): Path to save the plot image. If None, the plot is shown.
+            show (bool): Whether to display the plot.
         """
         pass
 

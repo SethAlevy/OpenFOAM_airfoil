@@ -57,7 +57,7 @@ def prepare_case():
             raise ValueError(
                 f"Invalid NACA designation '{designation}' for airfoil generation."
             )
-        
+
         if len(digits) == 4:
             airfoil = af.NACA4(designation=digits, setup=setup)
         elif len(digits) == 5:
@@ -69,7 +69,7 @@ def prepare_case():
             )
 
         SimpleLogger.log(f"Generated airfoil: {airfoil}")
-    
+
     elif bool(airfoil_settings.get("DownloadUIUC")):
         airfoil = af.UIUCAirfoil(designation=designation, setup=setup)
 
@@ -89,7 +89,7 @@ def prepare_case():
     airfoil.set_angle_of_attack(angle_of_attack)
     airfoil.plot(
         title=f"Airfoil: {designation} at AoA: {angle_of_attack}°",
-        save_path='plots',
+        output_dir='plots',
         show=False
     )
 
